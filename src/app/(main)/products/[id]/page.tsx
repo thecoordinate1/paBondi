@@ -8,13 +8,15 @@ import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, ShoppingCart, Store as StoreIcon } from 'lucide-react';
+import { use } from 'react'; // Import 'use'
 
 interface ProductDetailsPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>; // Updated type to Promise
 }
 
-export default function ProductDetailsPage({ params }: ProductDetailsPageProps) {
-  const product = getProductById(params.id);
+export default function ProductDetailsPage({ params: paramsPromise }: ProductDetailsPageProps) {
+  const params = use(paramsPromise); // Unwrap the promise
+  const product = getProductById(params.id); // Use resolved params
   const { addToCart } = useCart();
 
   if (!product) {
@@ -76,4 +78,3 @@ export default function ProductDetailsPage({ params }: ProductDetailsPageProps) 
 //   const products = getAllProducts();
 //   return products.map(product => ({ id: product.id }));
 // }
-
