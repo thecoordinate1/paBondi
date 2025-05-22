@@ -104,11 +104,9 @@ const Header = () => {
               <SheetContent side="right" className="w-[280px] p-0 flex flex-col">
                 <SheetHeader className="p-4 border-b">
                    <SheetTitle className="text-left">
-                     <Link href="/" passHref>
-                        <span onClick={() => setMobileMenuOpen(false)} className="cursor-pointer">
-                            <Logo />
-                        </span>
-                     </Link>
+                     <span onClick={() => setMobileMenuOpen(false)} className="cursor-pointer">
+                        <Logo />
+                     </span>
                    </SheetTitle>
                 </SheetHeader>
                 <nav className="flex flex-col space-y-1 p-4 flex-grow">
