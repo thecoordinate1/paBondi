@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from 'next/image';
@@ -16,7 +17,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
   const { addToCart } = useCart();
 
   return (
-    <Card className="flex flex-col overflow-hidden h-full shadow-[0_0_15px_3px_rgba(var(--card-rgb),0.3)] hover:shadow-[0_0_25px_6px_rgba(var(--card-rgb),0.4)] transition-shadow duration-300 rounded-lg">
+    <Card className="flex flex-col overflow-hidden h-full shadow-[0_0_15px_3px_rgba(var(--card-rgb),0.3)] hover:shadow-[0_0_35px_10px_rgba(var(--card-rgb),0.45)] transition-shadow duration-300 rounded-lg">
       <Link href={`/products/${product.id}`} className="block">
         <CardHeader className="p-0">
           <div className="aspect-square relative w-full overflow-hidden">
