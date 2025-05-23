@@ -33,7 +33,7 @@ export default function ProductDetailsPage({ params: paramsPromise }: ProductDet
         </Button>
       </Link>
 
-      <Card className="overflow-hidden shadow-lg">
+      <Card className="overflow-hidden shadow-[0_0_20px_5px_rgba(var(--card-rgb),0.35)]">
         <div className="grid md:grid-cols-2 gap-0 md:gap-8 items-start">
           <div className="aspect-square relative w-full bg-muted/30">
             <Image

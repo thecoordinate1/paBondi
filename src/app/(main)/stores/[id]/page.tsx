@@ -29,7 +29,7 @@ export default function StoreDetailsPage({ params }: StoreDetailsPageProps) {
         </Button>
       </Link>
 
-      <Card className="overflow-hidden shadow-lg">
+      <Card className="overflow-hidden shadow-[0_0_20px_5px_rgba(var(--card-rgb),0.35)]">
         <CardHeader className="bg-muted/30 p-6 md:p-8">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
             <Image

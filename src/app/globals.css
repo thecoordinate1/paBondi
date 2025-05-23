@@ -13,6 +13,7 @@ body {
     --foreground: 0 0% 98%; /* Off-white */
 
     --card: 16 100% 62%; /* Vibrant Coral #FF5C33 */
+    --card-rgb: 255, 92, 51; /* RGB for Vibrant Coral */
     --card-foreground: 0 0% 10%; /* Dark Gray for text on coral */
 
     --popover: 230 10% 15%; /* Darker popover background */
@@ -62,6 +63,7 @@ body {
     --foreground: 0 0% 98%; /* Off-white */
 
     --card: 16 100% 62%; /* Vibrant Coral #FF5C33 */
+    --card-rgb: 255, 92, 51; /* RGB for Vibrant Coral */
     --card-foreground: 0 0% 10%; /* Dark Gray for text on coral */
 
     --popover: 230 10% 15%; /* Darker popover background */

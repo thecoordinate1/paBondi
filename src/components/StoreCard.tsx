@@ -11,7 +11,7 @@ interface StoreCardProps {
 
 const StoreCard = ({ store }: StoreCardProps) => {
   return (
-    <Card className="flex flex-col overflow-hidden h-full shadow-lg hover:shadow-xl transition-shadow duration-300 rounded-lg">
+    <Card className="flex flex-col overflow-hidden h-full shadow-[0_0_15px_3px_rgba(var(--card-rgb),0.3)] hover:shadow-[0_0_25px_6px_rgba(var(--card-rgb),0.4)] transition-shadow duration-300 rounded-lg">
       <Link href={`/stores/${store.id}`} className="block">
         <CardHeader className="flex flex-row items-center space-x-4 p-4">
           <Image
