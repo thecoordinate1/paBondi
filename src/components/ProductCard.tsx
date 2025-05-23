@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useCart } from '@/context/CartContext';
 import { ShoppingCart } from 'lucide-react';
+import StarRating from './StarRating';
+import { Badge } from '@/components/ui/badge';
 
 interface ProductCardProps {
   product: Product;
@@ -15,6 +17,7 @@ interface ProductCardProps {
 
 const ProductCard = ({ product }: ProductCardProps) => {
   const { addToCart } = useCart();
+  const lowStockThreshold = 5;
 
   return (
     <Card className="flex flex-col overflow-hidden h-full shadow-[0_0_15px_3px_rgba(var(--card-rgb),0.3)] hover:shadow-[0_0_35px_10px_rgba(var(--card-rgb),0.45)] transition-shadow duration-300 rounded-lg">
@@ -22,13 +25,19 @@ const ProductCard = ({ product }: ProductCardProps) => {
         <CardHeader className="p-0">
           <div className="aspect-square relative w-full overflow-hidden">
             <Image
-              src={product.imageUrl}
+              src={product.imageUrls[0]}
               alt={product.name}
               layout="fill"
               objectFit="cover"
               data-ai-hint="product item"
               className="hover:scale-105 transition-transform duration-300"
             />
+             {product.stockCount !== undefined && product.stockCount <= lowStockThreshold && product.stockCount > 0 && (
+              <Badge variant="destructive" className="absolute top-2 right-2">Low Stock</Badge>
+            )}
+            {product.stockCount !== undefined && product.stockCount === 0 && (
+              <Badge variant="outline" className="absolute top-2 right-2 bg-muted/80 text-muted-foreground">Out of Stock</Badge>
+            )}
           </div>
         </CardHeader>
       </Link>
@@ -36,16 +45,25 @@ const ProductCard = ({ product }: ProductCardProps) => {
         <Link href={`/products/${product.id}`} className="block">
           <CardTitle className="text-lg font-semibold mb-1 hover:text-primary transition-colors">{product.name}</CardTitle>
         </Link>
-        <CardDescription className="text-sm text-muted-foreground mb-2">
+        <CardDescription className="text-sm text-muted-foreground mb-1">
           <Link href={`/stores/${product.storeId}`} className="hover:underline">
             {product.storeName || 'Visit Store'}
           </Link>
         </CardDescription>
+        {product.averageRating !== undefined && product.reviewCount !== undefined && (
+          <StarRating rating={product.averageRating} reviewCount={product.reviewCount} size={14} className="mb-2" showText/>
+        )}
         <p className="text-xl font-bold text-primary">${product.price.toFixed(2)}</p>
       </CardContent>
       <CardFooter className="p-4 border-t">
-        <Button onClick={() => addToCart(product)} className="w-full" variant="default">
-          <ShoppingCart size={18} className="mr-2" /> Add to Cart
+        <Button 
+          onClick={() => addToCart(product)} 
+          className="w-full" 
+          variant="default"
+          disabled={product.stockCount === 0}
+        >
+          <ShoppingCart size={18} className="mr-2" />
+          {product.stockCount === 0 ? "Out of Stock" : "Add to Cart"}
         </Button>
       </CardFooter>
     </Card>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useCart } from '@/context/CartContext';
@@ -34,7 +35,7 @@ export default function CartPage() {
             <Card key={item.id} className="flex flex-col sm:flex-row items-center p-4 gap-4 overflow-hidden shadow-[0_0_10px_2px_rgba(var(--card-rgb),0.25)]">
               <Link href={`/products/${item.id}`} className="block shrink-0">
                 <Image
-                  src={item.imageUrl}
+                  src={item.imageUrls[0]} // Use the first image from the array
                   alt={item.name}
                   width={100}
                   height={100}
