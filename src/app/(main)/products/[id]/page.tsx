@@ -68,7 +68,7 @@ export default function ProductDetailsPage({ params: paramsPromise }: ProductDet
         </Button>
       </Link>
 
-      <Card className="overflow-hidden shadow-[0_0_20px_5px_rgba(var(--card-rgb),0.35)]">
+      <Card className="overflow-hidden shadow-xl">
         <div className="grid md:grid-cols-2 gap-0 md:gap-8 items-start">
           <div className="relative w-full bg-muted/30 p-4 md:p-6">
             {product.imageUrls && product.imageUrls.length > 0 ? (
@@ -76,7 +76,7 @@ export default function ProductDetailsPage({ params: paramsPromise }: ProductDet
                 <CarouselContent>
                   {product.imageUrls.map((url, index) => (
                     <CarouselItem key={index}>
-                      <div className="aspect-square relative bg-card rounded-lg overflow-hidden">
+                      <div className="aspect-square relative bg-card rounded-lg overflow-hidden border">
                         <Image
                           src={url}
                           alt={`${product.name} - image ${index + 1}`}
@@ -97,7 +97,7 @@ export default function ProductDetailsPage({ params: paramsPromise }: ProductDet
                 )}
               </Carousel>
             ) : (
-              <div className="aspect-square relative bg-card rounded-lg flex items-center justify-center">
+              <div className="aspect-square relative bg-card rounded-lg flex items-center justify-center border">
                 <StoreIcon size={64} className="text-muted-foreground" /> {/* Placeholder icon */}
               </div>
             )}

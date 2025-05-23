@@ -9,101 +9,99 @@ body {
 
 @layer base {
   :root {
-    --background: 170 20% 10%; /* Very Dark Desaturated Cyan-Green */
-    --foreground: 170 10% 90%; /* Light, slightly tinted off-white */
+    --background: 240 25% 97%; /* Very light, slightly cool off-white - #F5F6FA */
+    --foreground: 230 30% 25%; /* Dark cool grey - #30344D */
 
-    --card: 175 40% 35%; /* Muted Deep Aquamarine */
-    --card-rgb: 54, 125, 118; /* RGB for Muted Deep Aquamarine (hsl(175, 40%, 35%)) */
-    --card-foreground: 175 10% 85%; /* Light text for on-card content */
+    --card: 0 0% 100%; /* White */
+    --card-foreground: 230 30% 25%; /* Dark cool grey for text on cards */
 
-    --popover: 175 30% 15%; /* Darker popover background */
-    --popover-foreground: 170 10% 88%; /* Light text for popover */
+    --popover: 0 0% 100%; /* White */
+    --popover-foreground: 230 30% 25%; /* Dark cool grey for text on popovers */
 
-    --primary: 170 50% 50%; /* Brighter Aquamarine/Teal */
-    --primary-foreground: 170 20% 10%; /* Dark text for primary buttons */
+    --primary: 232 55% 55%; /* Sapphire Blue - #4D69D9 */
+    --primary-foreground: 232 55% 98%; /* Very light for contrast on primary - #F2F5FE */
 
-    --secondary: 175 30% 25%; /* Darker, more muted Aquamarine */
-    --secondary-foreground: 170 50% 50%; /* Use primary color for text on secondary */
+    --secondary: 230 20% 90%; /* Light grey - #E1E3EA */
+    --secondary-foreground: 232 55% 45%; /* Darker blue for text on light grey - #3C54AD */
 
-    --muted: 175 20% 20%; /* Darker grayish aquamarine for muted backgrounds */
-    --muted-foreground: 170 15% 60%; /* Lighter grayish text for muted elements */
+    --muted: 230 20% 94%; /* Slightly darker light grey - #ECEDF1 */
+    --muted-foreground: 230 20% 50%; /* Medium grey - #72778C */
 
-    --accent: 165 45% 45%; /* A slightly greener, distinct aquamarine */
-    --accent-foreground: 165 20% 10%; /* Dark text for accent elements */
+    --accent: 219 45% 60%; /* Desaturated Blue - #6886C2 */
+    --accent-foreground: 219 45% 98%; /* Very light for contrast on accent - #F1F5FD */
 
-    --destructive: 0 70% 55%; /* A clear Red for warnings */
+    --destructive: 0 70% 55%; /* Clear Red */
     --destructive-foreground: 0 0% 98%; /* Light text for destructive */
 
-    --border: 175 25% 30%; /* Subtle aquamarine-tinted border */
-    --input: 175 30% 25%; /* Dark aquamarine input background */
-    --ring: 170 50% 55%; /* Ring color based on primary */
+    --border: 230 20% 85%; /* Slightly visible border - #CCD0DB */
+    --input: 230 20% 92%; /* Input background - #E7E9EF */
+    --ring: 232 55% 60%; /* Ring color based on primary - #627EEE */
 
     --radius: 0.5rem;
 
-    /* Chart colors for the new theme */
-    --chart-1: 170 60% 45%;
-    --chart-2: 180 50% 40%;
-    --chart-3: 160 55% 50%;
-    --chart-4: 175 65% 35%;
-    --chart-5: 185 45% 55%;
+    /* Chart colors for the new light theme */
+    --chart-1: 232 55% 55%; /* primary */
+    --chart-2: 219 45% 60%; /* accent */
+    --chart-3: 190 60% 50%; /* A teal */
+    --chart-4: 230 20% 70%; /* A medium grey */
+    --chart-5: 260 50% 60%; /* A purple */
 
-    /* Sidebar colors for the new theme */
-    --sidebar-background: 170 20% 8%; /* Very dark base for sidebar */
-    --sidebar-foreground: 170 10% 88%; /* Light text */
-    --sidebar-primary: 170 50% 50%; /* Match main primary */
-    --sidebar-primary-foreground: 170 20% 10%; /* Match main primary-foreground */
-    --sidebar-accent: 165 45% 45%; /* Match main accent */
-    --sidebar-accent-foreground: 165 20% 10%; /* Match main accent-foreground */
-    --sidebar-border: 175 20% 20%; /* Darker border for sidebar */
-    --sidebar-ring: 170 50% 55%; /* Match main ring */
+    /* Sidebar colors for the new light theme */
+    --sidebar-background: 240 30% 98%; /* Slightly off-white, lighter than page bg */
+    --sidebar-foreground: 230 30% 25%; /* Dark text */
+    --sidebar-primary: 232 55% 50%; /* Primary, slightly darker for sidebar emphasis */
+    --sidebar-primary-foreground: 232 55% 98%;
+    --sidebar-accent: 219 45% 55%; /* Accent, slightly darker */
+    --sidebar-accent-foreground: 219 45% 98%;
+    --sidebar-border: 230 20% 88%; /* Lighter border for sidebar internal elements */
+    --sidebar-ring: 232 55% 60%;
   }
 
   .dark {
-    --background: 170 20% 10%; /* Very Dark Desaturated Cyan-Green */
-    --foreground: 170 10% 90%; /* Light, slightly tinted off-white */
+    --background: 230 15% 12%; /* Very Dark Blue-Grey - #1A1C23 */
+    --foreground: 230 15% 88%; /* Light Grey - #D8DADE */
 
-    --card: 175 40% 35%; /* Muted Deep Aquamarine */
-    --card-rgb: 54, 125, 118; /* RGB for Muted Deep Aquamarine */
-    --card-foreground: 175 10% 85%; /* Light text for on-card content */
+    --card: 230 15% 18%; /* Darker Blue-Grey - #262933 */
+    --card-foreground: 230 15% 88%; /* Light Grey */
 
-    --popover: 175 30% 15%; /* Darker popover background */
-    --popover-foreground: 170 10% 88%; /* Light text for popover */
+    --popover: 230 15% 15%; /* Slightly darker than card for popovers */
+    --popover-foreground: 230 15% 88%; /* Light Grey */
 
-    --primary: 170 50% 50%; /* Brighter Aquamarine/Teal */
-    --primary-foreground: 170 20% 10%; /* Dark text for primary buttons */
+    --primary: 232 60% 65%; /* Brighter Sapphire for dark mode - #6B87EE */
+    --primary-foreground: 230 60% 15%; /* Dark text for contrast on bright primary - #1E2640 */
 
-    --secondary: 175 30% 25%;
-    --secondary-foreground: 170 50% 50%;
+    --secondary: 230 15% 25%; /* Dark Grey - #363A47 */
+    --secondary-foreground: 232 60% 75%; /* Lighter blue for text on dark secondary - #8CA1F1 */
 
-    --muted: 175 20% 20%;
-    --muted-foreground: 170 15% 60%;
+    --muted: 230 15% 22%; /* Darker Grey for muted backgrounds */
+    --muted-foreground: 230 15% 65%; /* Medium-Light Grey for muted text - #9CA1B2 */
 
-    --accent: 165 45% 45%;
-    --accent-foreground: 165 20% 10%;
+    --accent: 219 50% 70%; /* Brighter Desaturated Blue for dark mode - #819FDC */
+    --accent-foreground: 219 50% 15%; /* Dark text for contrast on bright accent - #1D273B */
 
-    --destructive: 0 70% 55%; 
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 60% 50%; /* Slightly less intense red for dark mode */
+    --destructive-foreground: 0 0% 95%; /* Light text for destructive */
 
-    --border: 175 25% 30%;
-    --input: 175 30% 25%;
-    --ring: 170 50% 55%;
+    --border: 230 15% 25%; /* Darker border - #363A47 */
+    --input: 230 15% 20%; /* Dark input background - #2B2F3A */
+    --ring: 232 60% 70%; /* Ring color based on dark primary - #8197F0 */
     
     /* Chart colors for dark mode */
-    --chart-1: 170 60% 45%;
-    --chart-2: 180 50% 40%;
-    --chart-3: 160 55% 50%;
-    --chart-4: 175 65% 35%;
-    --chart-5: 185 45% 55%;
+    --chart-1: 232 60% 65%; /* primary dark */
+    --chart-2: 219 50% 70%; /* accent dark */
+    --chart-3: 190 65% 60%; /* A brighter teal */
+    --chart-4: 230 15% 50%; /* A lighter grey */
+    --chart-5: 260 55% 70%; /* A brighter purple */
 
     /* Sidebar colors for dark mode */
-    --sidebar-background: 170 20% 8%; 
-    --sidebar-foreground: 170 10% 88%; 
-    --sidebar-primary: 170 50% 50%; 
-    --sidebar-primary-foreground: 170 20% 10%; 
-    --sidebar-accent: 165 45% 45%; 
-    --sidebar-accent-foreground: 165 20% 10%; 
-    --sidebar-border: 175 20% 20%; 
-    --sidebar-ring: 170 50% 55%;
+    --sidebar-background: 230 15% 10%; /* Even darker for sidebar base */
+    --sidebar-foreground: 230 15% 88%; 
+    --sidebar-primary: 232 60% 65%; 
+    --sidebar-primary-foreground: 230 60% 15%; 
+    --sidebar-accent: 219 50% 70%; 
+    --sidebar-accent-foreground: 219 50% 15%; 
+    --sidebar-border: 230 15% 20%; 
+    --sidebar-ring: 232 60% 70%;
   }
 }
 
@@ -113,8 +111,14 @@ body {
   }
   body {
     @apply text-foreground;
-    background-image: linear-gradient(to bottom, hsl(var(--background)), hsl(175 15% 5%)); /* Gradient from dark cyan-green to darker teal-slate */
-    background-attachment: fixed; /* Ensures gradient covers full page smoothly */
-    background-repeat: no-repeat; /* Prevents gradient from repeating */
+    /* Subtle gradient for the light theme */
+    background-image: linear-gradient(to bottom, hsl(var(--background)), hsl(240 25% 94%));
+    background-attachment: fixed; 
+    background-repeat: no-repeat;
+  }
+
+  .dark body {
+     /* Subtle gradient for the dark theme */
+    background-image: linear-gradient(to bottom, hsl(var(--background)), hsl(230 15% 8%));
   }
 }

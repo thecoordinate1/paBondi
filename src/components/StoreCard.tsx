@@ -12,7 +12,7 @@ interface StoreCardProps {
 
 const StoreCard = ({ store }: StoreCardProps) => {
   return (
-    <Card className="flex flex-col overflow-hidden h-full shadow-[0_0_15px_3px_rgba(var(--card-rgb),0.3)] hover:shadow-[0_0_35px_10px_rgba(var(--card-rgb),0.45)] transition-shadow duration-300 rounded-lg">
+    <Card className="flex flex-col overflow-hidden h-full shadow-lg hover:shadow-xl transition-shadow duration-300 rounded-lg">
       <Link href={`/stores/${store.id}`} className="block">
         <CardHeader className="flex flex-row items-center space-x-4 p-4">
           <Image
@@ -20,7 +20,7 @@ const StoreCard = ({ store }: StoreCardProps) => {
             alt={`${store.name} logo`}
             width={64}
             height={64}
-            className="rounded-md aspect-square object-contain"
+            className="rounded-md aspect-square object-contain border" /* Added border for white logos on white cards */
             data-ai-hint="store logo"
           />
           <CardTitle className="text-xl font-semibold hover:text-primary transition-colors">{store.name}</CardTitle>

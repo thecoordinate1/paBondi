@@ -32,7 +32,7 @@ export default function CartPage() {
       <div className="grid lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-2 space-y-4">
           {cartItems.map(item => (
-            <Card key={item.id} className="flex flex-col sm:flex-row items-center p-4 gap-4 overflow-hidden shadow-[0_0_10px_2px_rgba(var(--card-rgb),0.25)]">
+            <Card key={item.id} className="flex flex-col sm:flex-row items-center p-4 gap-4 overflow-hidden shadow-md">
               <Link href={`/products/${item.id}`} className="block shrink-0">
                 <Image
                   src={item.imageUrls[0]} // Use the first image from the array
@@ -76,7 +76,7 @@ export default function CartPage() {
         </div>
 
         <div className="lg:col-span-1">
-          <Card className="sticky top-20 shadow-[0_0_20px_5px_rgba(var(--card-rgb),0.35)]">
+          <Card className="sticky top-20 shadow-xl">
             <CardHeader>
               <CardTitle className="text-2xl">Order Summary</CardTitle>
             </CardHeader>
