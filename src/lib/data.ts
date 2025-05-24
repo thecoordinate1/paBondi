@@ -1,18 +1,45 @@
 
 import type { Store, Product } from '@/types';
 import type { Product as SupabaseProduct, Store as SupabaseStore, ProductImage as SupabaseProductImage } from '@/types/supabase';
-import { createClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers'; // Import cookies
+import type { SupabaseClient, PostgrestError } from '@supabase/supabase-js'; // Import SupabaseClient and PostgrestError
+// Removed: import { createClient } from '@/lib/supabase/server';
+// Removed: import { cookies } from 'next/headers';
 
 const mapSupabaseProductToAppProduct = async (
+  supabase: SupabaseClient, // Added supabase client as parameter
   supabaseProduct: SupabaseProduct,
-  allProductImages: SupabaseProductImage[],
-  allStoresMap: Map<string, { name: string }>
+  allProductImages?: SupabaseProductImage[], // Made optional, can fetch if not provided
+  allStoresMap?: Map<string, { name: string }> // Made optional, can fetch if not provided
 ): Promise<Product> => {
-  const productImages = allProductImages
+  let productImagesData = allProductImages;
+  if (!productImagesData) {
+    const { data, error } = await supabase
+      .from('product_images')
+      .select('image_url, order, product_id, id')
+      .eq('product_id', supabaseProduct.id)
+      .order('order');
+    if (error) console.error(`Error fetching images for product ${supabaseProduct.id}:`, error);
+    productImagesData = data || [];
+  }
+
+  const productImages = productImagesData
     .filter(img => img.product_id === supabaseProduct.id)
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
     .map(img => img.image_url);
+
+  let storeName = 'Unknown Store';
+  if (allStoresMap && supabaseProduct.store_id && allStoresMap.has(supabaseProduct.store_id)) {
+    storeName = allStoresMap.get(supabaseProduct.store_id)!.name;
+  } else if (supabaseProduct.store_id) {
+    const { data: storeData, error: storeError } = await supabase
+      .from('stores')
+      .select('name')
+      .eq('id', supabaseProduct.store_id)
+      .single();
+    if (storeError && storeError.code !== 'PGRST116') console.error(`Error fetching store name for product ${supabaseProduct.id}:`, storeError);
+    if (storeData) storeName = storeData.name;
+  }
+
 
   return {
     id: supabaseProduct.id,
@@ -21,11 +48,11 @@ const mapSupabaseProductToAppProduct = async (
     imageUrls: productImages.length > 0 ? productImages : ['https://placehold.co/600x600.png?text=No+Image'],
     description: supabaseProduct.full_description || supabaseProduct.description || 'No description available.',
     storeId: supabaseProduct.store_id,
-    storeName: allStoresMap.get(supabaseProduct.store_id)?.name || 'Unknown Store',
+    storeName: storeName,
     category: supabaseProduct.category,
     stockCount: supabaseProduct.stock,
-    // featured, averageRating, reviewCount are not directly available from this basic fetch
-    // and will be undefined or handled by UI default
+    averageRating: undefined, // Placeholder
+    reviewCount: undefined,   // Placeholder
   };
 };
 
@@ -35,13 +62,10 @@ const mapSupabaseStoreToAppStore = (supabaseStore: SupabaseStore): Store => {
     name: supabaseStore.name,
     logoUrl: supabaseStore.logo_url || 'https://placehold.co/100x100.png?text=No+Logo',
     description: supabaseStore.description,
-    // featured is not directly available
   };
 };
 
-export const getAllStores = async (): Promise<Store[]> => {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+export const getAllStores = async (supabase: SupabaseClient): Promise<Store[]> => {
   const { data, error } = await supabase
     .from('stores')
     .select('*')
@@ -54,9 +78,7 @@ export const getAllStores = async (): Promise<Store[]> => {
   return data ? data.map(mapSupabaseStoreToAppStore) : [];
 };
 
-export const getStoreById = async (id: string): Promise<Store | undefined> => {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+export const getStoreById = async (supabase: SupabaseClient, id: string): Promise<Store | undefined> => {
   const { data, error } = await supabase
     .from('stores')
     .select('*')
@@ -65,7 +87,6 @@ export const getStoreById = async (id: string): Promise<Store | undefined> => {
     .single();
 
   if (error) {
-    // Don't log "Row not found" as a critical error for single() queries
     if (error.code !== 'PGRST116') {
       console.error(`Error fetching store ${id}:`, error);
     }
@@ -74,10 +95,7 @@ export const getStoreById = async (id: string): Promise<Store | undefined> => {
   return data ? mapSupabaseStoreToAppStore(data) : undefined;
 };
 
-export const getAllProducts = async (): Promise<Product[]> => {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-
+export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
   const { data: productsData, error: productsError } = await supabase
     .from('products')
     .select('*')
@@ -90,7 +108,7 @@ export const getAllProducts = async (): Promise<Product[]> => {
   if (!productsData) return [];
 
   const productIds = productsData.map(p => p.id);
-  const storeIds = [...new Set(productsData.map(p => p.store_id).filter(id => id))]; // Filter out null/undefined store_ids
+  const storeIds = [...new Set(productsData.map(p => p.store_id).filter(id => id))];
 
   let imagesData: SupabaseProductImage[] = [];
   if (productIds.length > 0) {
@@ -116,13 +134,11 @@ export const getAllProducts = async (): Promise<Product[]> => {
   }
   
   return Promise.all(
-    productsData.map(p => mapSupabaseProductToAppProduct(p, imagesData, storesMap))
+    productsData.map(p => mapSupabaseProductToAppProduct(supabase, p, imagesData, storesMap))
   );
 };
 
-export const getProductById = async (id: string): Promise<Product | undefined> => {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+export const getProductById = async (supabase: SupabaseClient, id: string): Promise<Product | undefined> => {
   const { data: productData, error: productError } = await supabase
     .from('products')
     .select('*')
@@ -131,43 +147,16 @@ export const getProductById = async (id: string): Promise<Product | undefined> =
     .single();
 
   if (productError || !productData) {
-     if (productError && productError.code !== 'PGRST116') { // Row not found is expected for notFound()
+     if (productError && productError.code !== 'PGRST116') {
         console.error(`Error fetching product ${id}:`, productError);
      }
     return undefined;
   }
-
-  const { data: imagesData, error: imagesError } = await supabase
-    .from('product_images')
-    .select('image_url, order, product_id, id') // ensure product_id and id are part of the type
-    .eq('product_id', productData.id)
-    .order('order');
-
-  if (imagesError) {
-    console.error(`Error fetching images for product ${id}:`, imagesError);
-  }
-  
-  const storeMap = new Map<string, { name: string }>();
-  if (productData.store_id) {
-    const { data: storeData, error: storeError } = await supabase
-      .from('stores')
-      .select('id, name')
-      .eq('id', productData.store_id)
-      .single();
-
-    if (storeError && storeError.code !== 'PGRST116') {
-        console.error(`Error fetching store for product ${id}:`, storeError);
-    }
-    if (storeData) storeMap.set(storeData.id, { name: storeData.name });
-  }
-
-  return mapSupabaseProductToAppProduct(productData, imagesData || [], storeMap);
+  // mapSupabaseProductToAppProduct will fetch images and store name if not provided
+  return mapSupabaseProductToAppProduct(supabase, productData);
 };
 
-export const getProductsByStoreId = async (storeId: string): Promise<Product[]> => {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-  
+export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: string): Promise<Product[]> => {
   const { data: productsData, error: productsError } = await supabase
     .from('products')
     .select('*')
@@ -180,30 +169,19 @@ export const getProductsByStoreId = async (storeId: string): Promise<Product[]> 
   }
   if (!productsData) return [];
 
-  const productIds = productsData.map(p => p.id);
-  
-  let imagesData: SupabaseProductImage[] = [];
-  if (productIds.length > 0) {
-    const { data: fetchedImagesData, error: imagesError } = await supabase
-      .from('product_images')
-      .select('*')
-      .in('product_id', productIds);
-    if (imagesError) console.error('Error fetching product images:', imagesError);
-    imagesData = fetchedImagesData || [];
-  }
-
-  const storeData = await getStoreById(storeId); // Reuses existing function which handles its own client
+  // mapSupabaseProductToAppProduct will fetch images.
+  // We can pre-fetch store name for efficiency.
+  const {data: storeData, error: storeError} = await supabase.from('stores').select('id, name').eq('id', storeId).single();
   const storesMap = new Map<string, { name: string }>();
-  if (storeData) storesMap.set(storeData.id, { name: storeData.name });
+  if(storeData && !storeError) storesMap.set(storeData.id, {name: storeData.name});
+  else if(storeError && storeError.code !== 'PGRST116') console.error(`Error fetching store ${storeId} for products list:`, storeError);
   
   return Promise.all(
-    productsData.map(p => mapSupabaseProductToAppProduct(p, imagesData, storesMap))
+    productsData.map(p => mapSupabaseProductToAppProduct(supabase, p, undefined, storesMap))
   );
 };
 
-export const getFeaturedStores = async (): Promise<Store[]> => {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store[]> => {
   const { data, error } = await supabase
     .from('stores')
     .select('*')
@@ -218,9 +196,7 @@ export const getFeaturedStores = async (): Promise<Store[]> => {
   return data ? data.map(mapSupabaseStoreToAppStore) : [];
 };
 
-export const getFeaturedProducts = async (): Promise<Product[]> => {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
   const { data: productsData, error: productsError } = await supabase
     .from('products')
     .select('*')
@@ -234,32 +210,10 @@ export const getFeaturedProducts = async (): Promise<Product[]> => {
   }
   if (!productsData) return [];
   
-  const productIds = productsData.map(p => p.id);
-  const storeIds = [...new Set(productsData.map(p => p.store_id).filter(id => id))];
-
-  let imagesData: SupabaseProductImage[] = [];
-  if (productIds.length > 0) {
-      const { data: fetchedImagesData, error: imagesError } = await supabase
-        .from('product_images')
-        .select('*')
-        .in('product_id', productIds);
-      if (imagesError) console.error('Error fetching product images for featured products:', imagesError);
-      imagesData = fetchedImagesData || [];
-  }
-  
-  const storesMap = new Map<string, { name: string }>();
-  if (storeIds.length > 0) {
-      const { data: storesData, error: storesError } = await supabase
-        .from('stores')
-        .select('id, name')
-        .in('id', storeIds);
-      if (storesError) console.error('Error fetching store names for featured products:', storesError);
-      if (storesData) {
-        storesData.forEach(s => storesMap.set(s.id, { name: s.name }));
-      }
-  }
-  
+  // mapSupabaseProductToAppProduct will fetch images and store names.
+  // For a small number of featured products, fetching them individually inside map is acceptable.
+  // For larger lists, pre-fetching images and stores (as in getAllProducts) is more efficient.
   return Promise.all(
-    productsData.map(p => mapSupabaseProductToAppProduct(p, imagesData, storesMap))
+    productsData.map(p => mapSupabaseProductToAppProduct(supabase, p))
   );
 };

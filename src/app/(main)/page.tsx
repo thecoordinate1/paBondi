@@ -5,10 +5,15 @@ import StoreCard from '@/components/StoreCard';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 
-export default async function HomePage() { // Made async
-  const featuredStores = await getFeaturedStores(); // Added await
-  const featuredProducts = await getFeaturedProducts(); // Added await
+export default async function HomePage() {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+
+  const featuredStores = await getFeaturedStores(supabase);
+  const featuredProducts = await getFeaturedProducts(supabase);
 
   return (
     <div className="space-y-12">

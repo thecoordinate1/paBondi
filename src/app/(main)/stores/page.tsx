@@ -1,17 +1,18 @@
 
-"use client"; // Keep client for filtering, but data is fetched on server
+"use client"; 
 
 import { useState, useEffect, useMemo } from 'react';
 import type { Store } from '@/types';
-import { getAllStores } from '@/lib/data'; // This will now be a server function
+import { getAllStores } from '@/lib/data'; 
 import StoreCard from '@/components/StoreCard';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton'; // For loading state
 
-// New component to handle client-side logic
-function StoreGridClient({ initialStores }: { initialStores: Store[] }) {
+// StoreGridClient remains the same
+function StoreGridClient({ initialStores, isLoading }: { initialStores: Store[], isLoading: boolean }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [stores, setStores] = useState<Store[]>(initialStores); // Initialize with server-fetched data
+  const [stores, setStores] = useState<Store[]>(initialStores);
 
   useEffect(() => {
     setStores(initialStores);
@@ -23,6 +24,25 @@ function StoreGridClient({ initialStores }: { initialStores: Store[] }) {
       (store.description && store.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [stores, searchTerm]);
+
+  if (isLoading) {
+     return (
+      <>
+        <div className="relative mb-8">
+          <Skeleton className="h-10 w-full md:w-1/2 lg:w-1/3" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
@@ -52,13 +72,23 @@ function StoreGridClient({ initialStores }: { initialStores: Store[] }) {
   );
 }
 
-// Server Component to fetch data
-export default async function StoresPage() {
-  const initialStores = await getAllStores();
+import { cookies } from 'next/headers'; 
+import { createClient } from '@/lib/supabase/server'; 
+
+// This is the Server Component part
+async function fetchData() {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const stores = await getAllStores(supabase);
+  return stores;
+}
+
+export default async function StoresPageServer() {
+  const initialStores = await fetchData();
   return (
     <div className="space-y-8">
       <h1 className="text-3xl md:text-4xl font-bold text-foreground">All Stores</h1>
-      <StoreGridClient initialStores={initialStores} />
+      <StoreGridClient initialStores={initialStores} isLoading={false} />
     </div>
   );
 }

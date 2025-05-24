@@ -1,11 +1,11 @@
 
-// Removed "use client"; This page can be a Server Component primarily
-import { getProductById, getProductsByStoreId } from '@/lib/data';
+import { getProductById, getStoreById, getProductsByStoreId } from '@/lib/data';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Store as StoreIcon, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   Carousel,
   CarouselContent,
@@ -17,23 +17,26 @@ import StarRating from '@/components/StarRating';
 import { Badge } from '@/components/ui/badge';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import ProductCard from '@/components/ProductCard';
-import AddToCartButton from './AddToCartButton'; // New client component for the button
+import AddToCartButton from './AddToCartButton';
 import type { Product } from '@/types';
-
+import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 
 interface ProductDetailsPageProps {
   params: { id: string }; 
 }
 
 export default async function ProductDetailsPage({ params }: ProductDetailsPageProps) {
-  // `params` is directly available in Server Components
-  const product = await getProductById(params.id); 
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+
+  const product = await getProductById(supabase, params.id); 
 
   if (!product) {
     notFound();
   }
 
-  const store = product.storeId ? await getStoreById(product.storeId) : undefined;
+  const store = product.storeId ? await getStoreById(supabase, product.storeId) : undefined;
   const lowStockThreshold = 5;
 
   const breadcrumbSegments = [
@@ -46,7 +49,7 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
   breadcrumbSegments.push({ title: product.name });
 
   const relatedProducts = product.category && product.storeId
-    ? (await getProductsByStoreId(product.storeId)) 
+    ? (await getProductsByStoreId(supabase, product.storeId)) 
         .filter(p => p.id !== product.id && p.category === product.category)
         .slice(0, 4) 
     : [];
@@ -73,12 +76,12 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
                         <Image
                           src={url}
                           alt={`${product.name} - image ${index + 1}`}
-                          fill // Use fill instead of layout
+                          fill 
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          objectFit="contain"
+                          style={{ objectFit: 'contain' }} // Changed from objectFit to style
                           className="p-2"
                           data-ai-hint="product detail image"
-                          priority={index === 0} // Prioritize first image
+                          priority={index === 0}
                         />
                       </div>
                     </CarouselItem>
@@ -159,9 +162,21 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
   );
 }
 
-// This function can be used if you want to pre-render paths during build time.
-// export async function generateStaticParams() {
-//   const products = await getAllProducts(); // Make sure getAllProducts is adapted for Supabase
-//   return products.map(product => ({ id: product.id }));
-// }
+// generateStaticParams logic for products
+// import { getAllProducts } from '@/lib/data'; // Already imported indirectly
+import { createClient as createSupabaseServerClient } from '@/lib/supabase/server';
+import type { CookieOptions } from '@supabase/ssr';
 
+const buildTimeCookieStoreForProducts = {
+  get: (name: string) => { return undefined; },
+  set: (name: string, value: string, options: CookieOptions) => {},
+  remove: (name: string, options: CookieOptions) => {},
+  // Ensure it matches ReturnType<typeof import('next/headers').cookies> if more methods are needed by your createClient
+} as ReturnType<typeof import('next/headers').cookies>;
+
+
+export async function generateStaticParams() {
+  const supabase = createSupabaseServerClient(buildTimeCookieStoreForProducts);
+  const products = await getAllProducts(supabase); // getAllProducts now expects a client
+  return products.map(product => ({ id: product.id }));
+}

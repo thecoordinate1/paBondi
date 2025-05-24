@@ -1,25 +1,32 @@
 
-import { getStoreById, getProductsByStoreId } from '@/lib/data';
+import { getStoreById, getProductsByStoreId, getAllStores } from '@/lib/data';
 import ProductCard from '@/components/ProductCard';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'; // Removed CardContent
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
+import type { CookieOptions } from '@supabase/ssr';
+
 
 interface StoreDetailsPageProps {
   params: { id: string };
 }
 
-export default async function StoreDetailsPage({ params }: StoreDetailsPageProps) { // Made async
-  const store = await getStoreById(params.id); // Added await
+export default async function StoreDetailsPage({ params }: StoreDetailsPageProps) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+
+  const store = await getStoreById(supabase, params.id);
 
   if (!store) {
     notFound();
   }
 
-  const products = await getProductsByStoreId(store.id); // Added await
+  const products = await getProductsByStoreId(supabase, store.id);
 
   return (
     <div className="space-y-8">
@@ -66,9 +73,18 @@ export default async function StoreDetailsPage({ params }: StoreDetailsPageProps
   );
 }
 
-// Updated generateStaticParams to be async and use the new data fetching
+// Build-time cookie store mock for generateStaticParams
+const buildTimeCookieStoreForStores = {
+  get: (name: string) => { return undefined; },
+  set: (name: string, value: string, options: CookieOptions) => {},
+  remove: (name: string, options: CookieOptions) => {},
+  // Ensure it matches ReturnType<typeof import('next/headers').cookies> if more methods are needed by your createClient
+} as ReturnType<typeof import('next/headers').cookies>;
+
+
 export async function generateStaticParams() {
-  // const { getAllStores } = await import('@/lib/data'); // direct import now
-  const stores = await getAllStores();
+  // Create a Supabase client instance suitable for build time
+  const supabase = createClient(buildTimeCookieStoreForStores);
+  const stores = await getAllStores(supabase); // Pass the client to getAllStores
   return stores.map(store => ({ id: store.id }));
 }
