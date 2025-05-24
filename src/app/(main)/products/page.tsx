@@ -1,26 +1,29 @@
-"use client";
+
+"use client"; // Keep client for filtering, but data is fetched on server
 
 import { useState, useEffect, useMemo } from 'react';
 import type { Product } from '@/types';
-import { getAllProducts } from '@/lib/data';
+import { getAllProducts } from '@/lib/data'; // This will now be a server function but we call it before passing to client
 import ProductCard from '@/components/ProductCard';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export default function ProductsPage() {
+// New component to handle client-side logic
+function ProductGridClient({ initialProducts }: { initialProducts: Product[] }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(initialProducts); // Initialize with server-fetched data
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('name-asc');
 
+  // useEffect to set products if initialProducts changes (though typically it won't after initial load)
   useEffect(() => {
-    setProducts(getAllProducts());
-  }, []);
+    setProducts(initialProducts);
+  }, [initialProducts]);
 
   const categories = useMemo(() => {
     const allCategories = new Set(products.map(p => p.category).filter(Boolean) as string[]);
-    return ['all', ...Array.from(allCategories)];
+    return ['all', ...Array.from(allCategories).sort()];
   }, [products]);
 
   const filteredAndSortedProducts = useMemo(() => {
@@ -48,15 +51,16 @@ export default function ProductsPage() {
       case 'name-desc':
         processedProducts.sort((a, b) => b.name.localeCompare(a.name));
         break;
+      default:
+        // Optional: sort by relevance or a default criteria if needed
+        break;
     }
 
     return processedProducts;
   }, [products, searchTerm, selectedCategory, sortBy]);
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-3xl md:text-4xl font-bold text-foreground">All Products</h1>
-      
+    <>
       <div className="flex flex-col md:flex-row gap-4 items-center">
         <div className="relative flex-grow w-full md:w-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -106,6 +110,18 @@ export default function ProductsPage() {
           No products found matching your criteria.
         </p>
       )}
+    </>
+  );
+}
+
+// Server Component to fetch data
+export default async function ProductsPage() {
+  const initialProducts = await getAllProducts();
+
+  return (
+    <div className="space-y-8">
+      <h1 className="text-3xl md:text-4xl font-bold text-foreground">All Products</h1>
+      <ProductGridClient initialProducts={initialProducts} />
     </div>
   );
 }

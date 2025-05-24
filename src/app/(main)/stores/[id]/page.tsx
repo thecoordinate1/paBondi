@@ -3,7 +3,7 @@ import { getStoreById, getProductsByStoreId } from '@/lib/data';
 import ProductCard from '@/components/ProductCard';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'; // Removed CardContent
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -12,14 +12,14 @@ interface StoreDetailsPageProps {
   params: { id: string };
 }
 
-export default function StoreDetailsPage({ params }: StoreDetailsPageProps) {
-  const store = getStoreById(params.id);
+export default async function StoreDetailsPage({ params }: StoreDetailsPageProps) { // Made async
+  const store = await getStoreById(params.id); // Added await
 
   if (!store) {
     notFound();
   }
 
-  const products = getProductsByStoreId(store.id);
+  const products = await getProductsByStoreId(store.id); // Added await
 
   return (
     <div className="space-y-8">
@@ -66,8 +66,9 @@ export default function StoreDetailsPage({ params }: StoreDetailsPageProps) {
   );
 }
 
+// Updated generateStaticParams to be async and use the new data fetching
 export async function generateStaticParams() {
-  const { getAllStores } = await import('@/lib/data');
-  const stores = getAllStores();
+  // const { getAllStores } = await import('@/lib/data'); // direct import now
+  const stores = await getAllStores();
   return stores.map(store => ({ id: store.id }));
 }

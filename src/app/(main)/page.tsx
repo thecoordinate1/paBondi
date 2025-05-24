@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 
-export default function HomePage() {
-  const featuredStores = getFeaturedStores();
-  const featuredProducts = getFeaturedProducts();
+export default async function HomePage() { // Made async
+  const featuredStores = await getFeaturedStores(); // Added await
+  const featuredProducts = await getFeaturedProducts(); // Added await
 
   return (
     <div className="space-y-12">

@@ -1,15 +1,11 @@
 
-"use client"; 
-
-import { getProductById, getStoreById, getProductsByStoreId } from '@/lib/data';
+// Removed "use client"; This page can be a Server Component primarily
+import { getProductById, getProductsByStoreId } from '@/lib/data';
 import Image from 'next/image';
-import { notFound, usePathname } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { useCart } from '@/context/CartContext';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, ShoppingCart, Store as StoreIcon, AlertTriangle } from 'lucide-react';
-import { use } from 'react';
+import { ArrowLeft, Store as StoreIcon, AlertTriangle } from 'lucide-react';
 import {
   Carousel,
   CarouselContent,
@@ -20,25 +16,24 @@ import {
 import StarRating from '@/components/StarRating';
 import { Badge } from '@/components/ui/badge';
 import Breadcrumbs from '@/components/Breadcrumbs';
-import type { Product } from '@/types';
 import ProductCard from '@/components/ProductCard';
+import AddToCartButton from './AddToCartButton'; // New client component for the button
+import type { Product } from '@/types';
 
 
 interface ProductDetailsPageProps {
-  params: Promise<{ id: string }>; 
+  params: { id: string }; 
 }
 
-export default function ProductDetailsPage({ params: paramsPromise }: ProductDetailsPageProps) {
-  const params = use(paramsPromise); 
-  const product = getProductById(params.id); 
-  const { addToCart } = useCart();
-  const pathname = usePathname();
+export default async function ProductDetailsPage({ params }: ProductDetailsPageProps) {
+  // `params` is directly available in Server Components
+  const product = await getProductById(params.id); 
 
   if (!product) {
     notFound();
   }
 
-  const store = getStoreById(product.storeId);
+  const store = product.storeId ? await getStoreById(product.storeId) : undefined;
   const lowStockThreshold = 5;
 
   const breadcrumbSegments = [
@@ -46,17 +41,15 @@ export default function ProductDetailsPage({ params: paramsPromise }: ProductDet
     { title: "Products", href: "/products" },
   ];
   if (product.category) {
-    // In a real app, you might want to make category a link to a category page
     breadcrumbSegments.push({ title: product.category, href: `/products?category=${encodeURIComponent(product.category)}` });
   }
   breadcrumbSegments.push({ title: product.name });
 
-  const relatedProducts = product.category 
-    ? getProductsByStoreId(product.storeId) // Simple logic: products from same store
+  const relatedProducts = product.category && product.storeId
+    ? (await getProductsByStoreId(product.storeId)) 
         .filter(p => p.id !== product.id && p.category === product.category)
         .slice(0, 4) 
     : [];
-
 
   return (
     <div className="space-y-8">
@@ -72,7 +65,7 @@ export default function ProductDetailsPage({ params: paramsPromise }: ProductDet
         <div className="grid md:grid-cols-2 gap-0 md:gap-8 items-start">
           <div className="relative w-full bg-muted/30 p-4 md:p-6">
             {product.imageUrls && product.imageUrls.length > 0 ? (
-              <Carousel className="w-full max-w-md mx-auto" opts={{ loop: true }}>
+              <Carousel className="w-full max-w-md mx-auto" opts={{ loop: product.imageUrls.length > 1 }}>
                 <CarouselContent>
                   {product.imageUrls.map((url, index) => (
                     <CarouselItem key={index}>
@@ -80,10 +73,12 @@ export default function ProductDetailsPage({ params: paramsPromise }: ProductDet
                         <Image
                           src={url}
                           alt={`${product.name} - image ${index + 1}`}
-                          layout="fill"
+                          fill // Use fill instead of layout
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           objectFit="contain"
                           className="p-2"
                           data-ai-hint="product detail image"
+                          priority={index === 0} // Prioritize first image
                         />
                       </div>
                     </CarouselItem>
@@ -98,7 +93,7 @@ export default function ProductDetailsPage({ params: paramsPromise }: ProductDet
               </Carousel>
             ) : (
               <div className="aspect-square relative bg-card rounded-lg flex items-center justify-center border">
-                <StoreIcon size={64} className="text-muted-foreground" /> {/* Placeholder icon */}
+                <StoreIcon size={64} className="text-muted-foreground" /> 
               </div>
             )}
           </div>
@@ -144,15 +139,7 @@ export default function ProductDetailsPage({ params: paramsPromise }: ProductDet
                 <p className="text-sm text-muted-foreground">Category: <span className="font-medium text-foreground">{product.category}</span></p>
               )}
               
-              <Button 
-                onClick={() => addToCart(product)} 
-                size="lg" 
-                className="w-full md:w-auto mt-6"
-                disabled={product.stockCount === 0}
-              >
-                <ShoppingCart size={20} className="mr-2" /> 
-                {product.stockCount === 0 ? "Out of Stock" : "Add to Cart"}
-              </Button>
+              <AddToCartButton product={product} />
             </CardContent>
           </div>
         </div>
@@ -171,3 +158,10 @@ export default function ProductDetailsPage({ params: paramsPromise }: ProductDet
     </div>
   );
 }
+
+// This function can be used if you want to pre-render paths during build time.
+// export async function generateStaticParams() {
+//   const products = await getAllProducts(); // Make sure getAllProducts is adapted for Supabase
+//   return products.map(product => ({ id: product.id }));
+// }
+

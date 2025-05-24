@@ -3,23 +3,23 @@ export interface Product {
   id: string;
   name: string;
   price: number;
-  imageUrls: string[]; // Changed from imageUrl
+  imageUrls: string[];
   description: string;
   storeId: string;
-  storeName?: string; // Denormalized for convenience
+  storeName?: string; // Denormalized for convenience, now optional
   category?: string;
-  featured?: boolean;
-  stockCount?: number; // Added for stock level
-  averageRating?: number; // Added for star ratings
-  reviewCount?: number; // Added for star ratings
+  featured?: boolean; // Now optional
+  stockCount?: number; // Already optional, will map from Supabase 'stock'
+  averageRating?: number; // Now optional
+  reviewCount?: number; // Now optional
 }
 
 export interface Store {
   id: string;
   name: string;
-  logoUrl: string;
+  logoUrl: string; // Will map from Supabase 'logo_url'
   description: string;
-  featured?: boolean;
+  featured?: boolean; // Now optional
 }
 
 export interface CartItem extends Product {

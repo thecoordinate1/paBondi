@@ -1,125 +1,253 @@
+
 import type { Store, Product } from '@/types';
+import type { Product as SupabaseProduct, Store as SupabaseStore, ProductImage as SupabaseProductImage } from '@/types/supabase';
+import { createClient } from '@/lib/supabase/server'; // Using server client for data fetching
 
-export const stores: Store[] = [
-  {
-    id: 'store-1',
-    name: 'Blue Sapphire Corner',
-    logoUrl: 'https://placehold.co/100x100.png',
-    description: 'Exquisite gems and jewelry.',
-    featured: true,
-  },
-  {
-    id: 'store-2',
-    name: 'Modern Threads',
-    logoUrl: 'https://placehold.co/100x100.png',
-    description: 'Latest fashion trends for all.',
-    featured: true,
-  },
-  {
-    id: 'store-3',
-    name: 'Tech Gadget Hub',
-    logoUrl: 'https://placehold.co/100x100.png',
-    description: 'Cutting-edge electronics and accessories.',
-  },
-  {
-    id: 'store-4',
-    name: 'Gourmet Pantry',
-    logoUrl: 'https://placehold.co/100x100.png',
-    description: 'Artisanal foods and delicacies.',
-    featured: true,
-  },
-];
+const mapSupabaseProductToAppProduct = async (
+  supabaseProduct: SupabaseProduct,
+  allProductImages: SupabaseProductImage[],
+  allStoresMap: Map<string, { name: string }>
+): Promise<Product> => {
+  const productImages = allProductImages
+    .filter(img => img.product_id === supabaseProduct.id)
+    .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
+    .map(img => img.image_url);
 
-export const products: Product[] = [
-  {
-    id: 'prod-1',
-    name: 'Sapphire Ring',
-    price: 299.99,
-    imageUrls: ['https://placehold.co/600x600.png', 'https://placehold.co/600x600.png?text=Angle+2', 'https://placehold.co/600x600.png?text=Detail'],
-    description: 'A beautiful ring featuring a deep blue sapphire, perfect for special occasions. Crafted with precision and care, this ring showcases a stunning central sapphire surrounded by delicate detailing. It comes in a premium velvet box.',
-    storeId: 'store-1',
-    storeName: 'Blue Sapphire Corner',
-    category: 'Jewelry',
-    featured: true,
-    stockCount: 5,
-    averageRating: 4.8,
-    reviewCount: 22,
-  },
-  {
-    id: 'prod-2',
-    name: 'Silk Scarf',
-    price: 49.99,
-    imageUrls: ['https://placehold.co/600x600.png', 'https://placehold.co/600x600.png?text=Folded', 'https://placehold.co/600x600.png?text=Close-up'],
-    description: 'Luxurious 100% silk scarf with a modern, elegant design. Soft to the touch and versatile for any outfit, it measures 90x90cm and features hand-rolled edges.',
-    storeId: 'store-2',
-    storeName: 'Modern Threads',
-    category: 'Accessories',
-    featured: true,
-    stockCount: 15,
-    averageRating: 4.5,
-    reviewCount: 15,
-  },
-  {
-    id: 'prod-3',
-    name: 'Wireless Headphones',
-    price: 129.50,
-    imageUrls: ['https://placehold.co/600x600.png', 'https://placehold.co/600x600.png?text=Side+View', 'https://placehold.co/600x600.png?text=In+Case'],
-    description: 'High-fidelity wireless headphones with active noise cancellation and up to 20 hours of battery life. Features comfortable earcups and intuitive touch controls.',
-    storeId: 'store-3',
-    storeName: 'Tech Gadget Hub',
-    category: 'Electronics',
-    stockCount: 8,
-    averageRating: 4.2,
-    reviewCount: 30,
-  },
-  {
-    id: 'prod-4',
-    name: 'Organic Olive Oil',
-    price: 25.00,
-    imageUrls: ['https://placehold.co/600x600.png', 'https://placehold.co/600x600.png?text=Bottle+Detail'],
-    description: 'Extra virgin organic olive oil, cold-pressed from the finest olives. Rich in antioxidants and flavor, perfect for salads, cooking, or dipping. 500ml bottle.',
-    storeId: 'store-4',
-    storeName: 'Gourmet Pantry',
-    category: 'Food',
-    featured: true,
-    averageRating: 4.9,
-    reviewCount: 45,
-  },
-  {
-    id: 'prod-5',
-    name: 'Leather Wallet',
-    price: 75.00,
-    imageUrls: ['https://placehold.co/600x600.png', 'https://placehold.co/600x600.png?text=Open+View', 'https://placehold.co/600x600.png?text=Slots'],
-    description: 'Handcrafted genuine leather wallet with multiple card slots and a bill compartment. Slim design for comfortable everyday carry. Available in black and brown.',
-    storeId: 'store-2',
-    storeName: 'Modern Threads',
-    category: 'Accessories',
-    stockCount: 3, // Low stock example
-    averageRating: 4.6,
-    reviewCount: 18,
-  },
-  {
-    id: 'prod-6',
-    name: 'Smartwatch Series X',
-    price: 249.99,
-    imageUrls: ['https://placehold.co/600x600.png', 'https://placehold.co/600x600.png?text=Screen+Detail', 'https://placehold.co/600x600.png?text=Side+Buttons'],
-    description: 'Feature-rich smartwatch with health tracking (heart rate, SpO2), GPS, and a vibrant AMOLED display. Water-resistant and compatible with iOS and Android.',
-    storeId: 'store-3',
-    storeName: 'Tech Gadget Hub',
-    category: 'Electronics',
-    featured: true,
-    stockCount: 25,
-    averageRating: 4.3,
-    reviewCount: 28,
-  },
-];
+  return {
+    id: supabaseProduct.id,
+    name: supabaseProduct.name,
+    price: supabaseProduct.price,
+    imageUrls: productImages.length > 0 ? productImages : ['https://placehold.co/600x600.png?text=No+Image'],
+    description: supabaseProduct.full_description || supabaseProduct.description || 'No description available.',
+    storeId: supabaseProduct.store_id,
+    storeName: allStoresMap.get(supabaseProduct.store_id)?.name || 'Unknown Store',
+    category: supabaseProduct.category,
+    stockCount: supabaseProduct.stock,
+    // featured, averageRating, reviewCount are not directly available from this basic fetch
+    // and will be undefined or handled by UI default
+  };
+};
 
-export const getFeaturedStores = (): Store[] => stores.filter(store => store.featured).slice(0, 3);
-export const getFeaturedProducts = (): Product[] => products.filter(product => product.featured).slice(0, 4);
+const mapSupabaseStoreToAppStore = (supabaseStore: SupabaseStore): Store => {
+  return {
+    id: supabaseStore.id,
+    name: supabaseStore.name,
+    logoUrl: supabaseStore.logo_url || 'https://placehold.co/100x100.png?text=No+Logo',
+    description: supabaseStore.description,
+    // featured is not directly available
+  };
+};
 
-export const getAllStores = (): Store[] => stores;
-export const getStoreById = (id: string): Store | undefined => stores.find(store => store.id === id);
-export const getProductsByStoreId = (storeId: string): Product[] => products.filter(product => product.storeId === storeId);
+export const getAllStores = async (): Promise<Store[]> => {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('stores')
+    .select('*')
+    .eq('status', 'active'); // Assuming 'active' status for stores
 
-export const getAllProducts = (): Product[] => products;
-export const getProductById = (id: string): Product | undefined => products.find(product => product.id === id);
+  if (error) {
+    console.error('Error fetching stores:', error);
+    return [];
+  }
+  return data ? data.map(mapSupabaseStoreToAppStore) : [];
+};
+
+export const getStoreById = async (id: string): Promise<Store | undefined> => {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('stores')
+    .select('*')
+    .eq('id', id)
+    .eq('status', 'active')
+    .single();
+
+  if (error) {
+    console.error(`Error fetching store ${id}:`, error);
+    return undefined;
+  }
+  return data ? mapSupabaseStoreToAppStore(data) : undefined;
+};
+
+export const getAllProducts = async (): Promise<Product[]> => {
+  const supabase = createClient();
+
+  const { data: productsData, error: productsError } = await supabase
+    .from('products')
+    .select('*')
+    .eq('status', 'published'); // Assuming 'published' status for products
+
+  if (productsError) {
+    console.error('Error fetching products:', productsError);
+    return [];
+  }
+  if (!productsData) return [];
+
+  const productIds = productsData.map(p => p.id);
+  const storeIds = [...new Set(productsData.map(p => p.store_id))];
+
+  const { data: imagesData, error: imagesError } = await supabase
+    .from('product_images')
+    .select('*')
+    .in('product_id', productIds);
+  
+  if (imagesError) console.error('Error fetching product images:', imagesError);
+
+  const { data: storesData, error: storesError } = await supabase
+    .from('stores')
+    .select('id, name')
+    .in('id', storeIds);
+
+  if (storesError) console.error('Error fetching store names for products:', storesError);
+
+  const storesMap = new Map<string, { name: string }>();
+  if (storesData) {
+    storesData.forEach(s => storesMap.set(s.id, { name: s.name }));
+  }
+  
+  const allProductImages = imagesData || [];
+
+  return Promise.all(
+    productsData.map(p => mapSupabaseProductToAppProduct(p, allProductImages, storesMap))
+  );
+};
+
+export const getProductById = async (id: string): Promise<Product | undefined> => {
+  const supabase = createClient();
+  const { data: productData, error: productError } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', id)
+    .eq('status', 'published')
+    .single();
+
+  if (productError || !productData) {
+    console.error(`Error fetching product ${id}:`, productError);
+    return undefined;
+  }
+
+  const { data: imagesData, error: imagesError } = await supabase
+    .from('product_images')
+    .select('image_url, order')
+    .eq('product_id', productData.id)
+    .order('order');
+
+  if (imagesError) {
+    console.error(`Error fetching images for product ${id}:`, imagesError);
+    // Continue without images if fetch fails, default will be used
+  }
+  
+  const { data: storeData, error: storeError } = await supabase
+    .from('stores')
+    .select('id, name')
+    .eq('id', productData.store_id)
+    .single();
+
+  if (storeError || !storeData) {
+    console.error(`Error fetching store for product ${id}:`, storeError);
+  }
+  
+  const storeName = storeData?.name || 'Unknown Store';
+  const storeMap = new Map<string, { name: string }>();
+  if (storeData) storeMap.set(storeData.id, { name: storeData.name });
+
+
+  return mapSupabaseProductToAppProduct(productData, imagesData || [], storeMap);
+};
+
+export const getProductsByStoreId = async (storeId: string): Promise<Product[]> => {
+  const supabase = createClient();
+  
+  const { data: productsData, error: productsError } = await supabase
+    .from('products')
+    .select('*')
+    .eq('store_id', storeId)
+    .eq('status', 'published');
+
+  if (productsError) {
+    console.error(`Error fetching products for store ${storeId}:`, productsError);
+    return [];
+  }
+  if (!productsData) return [];
+
+  const productIds = productsData.map(p => p.id);
+  
+  const { data: imagesData, error: imagesError } = await supabase
+    .from('product_images')
+    .select('*')
+    .in('product_id', productIds);
+
+  if (imagesError) console.error('Error fetching product images:', imagesError);
+
+  // For products by store, we already know the store name or can fetch it once
+  const storeData = await getStoreById(storeId);
+  const storesMap = new Map<string, { name: string }>();
+  if (storeData) storesMap.set(storeData.id, { name: storeData.name });
+  
+  const allProductImages = imagesData || [];
+
+  return Promise.all(
+    productsData.map(p => mapSupabaseProductToAppProduct(p, allProductImages, storesMap))
+  );
+};
+
+export const getFeaturedStores = async (): Promise<Store[]> => {
+  const supabase = createClient();
+  // No 'featured' field in Supabase 'stores' table. Fetching first 3 active stores as "featured".
+  const { data, error } = await supabase
+    .from('stores')
+    .select('*')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(3);
+
+  if (error) {
+    console.error('Error fetching featured stores:', error);
+    return [];
+  }
+  return data ? data.map(mapSupabaseStoreToAppStore) : [];
+};
+
+export const getFeaturedProducts = async (): Promise<Product[]> => {
+  const supabase = createClient();
+  // No 'featured' field in Supabase 'products' table. Fetching first 4 published products as "featured".
+  const { data: productsData, error: productsError } = await supabase
+    .from('products')
+    .select('*')
+    .eq('status', 'published')
+    .order('created_at', { ascending: false })
+    .limit(4);
+
+  if (productsError) {
+    console.error('Error fetching featured products:', productsError);
+    return [];
+  }
+  if (!productsData) return [];
+  
+  const productIds = productsData.map(p => p.id);
+  const storeIds = [...new Set(productsData.map(p => p.store_id))];
+
+  const { data: imagesData, error: imagesError } = await supabase
+    .from('product_images')
+    .select('*')
+    .in('product_id', productIds);
+  
+  if (imagesError) console.error('Error fetching product images:', imagesError);
+
+  const { data: storesData, error: storesError } = await supabase
+    .from('stores')
+    .select('id, name')
+    .in('id', storeIds);
+
+  if (storesError) console.error('Error fetching store names for products:', storesError);
+
+  const storesMap = new Map<string, { name: string }>();
+  if (storesData) {
+    storesData.forEach(s => storesMap.set(s.id, { name: s.name }));
+  }
+  
+  const allProductImages = imagesData || [];
+  
+  return Promise.all(
+    productsData.map(p => mapSupabaseProductToAppProduct(p, allProductImages, storesMap))
+  );
+};
