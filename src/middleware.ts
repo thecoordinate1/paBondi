@@ -33,38 +33,37 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // const { data: { user } } = await supabase.auth.getUser();
 
-  const currentPath = request.nextUrl.pathname;
+  // const currentPath = request.nextUrl.pathname;
 
-  const authRoutes = ['/login', '/signup', '/forgot-password', '/update-password'];
-  // Define public routes that do not require authentication.
-  // Add other public routes like /products, /stores, /cart if they should be public.
-  const publicAppRoutes = ['/', '/products', '/stores', '/cart']; 
-  const productDetailPattern = /^\/products\/[^\/]+$/; // Matches /products/[id]
-  const storeDetailPattern = /^\/stores\/[^\/]+$/; // Matches /stores/[id]
-
-
-  // Check if the current path is a dynamic product or store detail page
-  const isProductDetailPublic = productDetailPattern.test(currentPath);
-  const isStoreDetailPublic = storeDetailPattern.test(currentPath);
-
-  const isPublicRoute = publicAppRoutes.includes(currentPath) || 
-                        authRoutes.includes(currentPath) || 
-                        currentPath.startsWith('/auth/callback') ||
-                        isProductDetailPublic ||
-                        isStoreDetailPublic;
+  // const authRoutes = ['/login', '/signup', '/forgot-password', '/update-password'];
+  // // Define public routes that do not require authentication.
+  // const publicAppRoutes = ['/', '/products', '/stores', '/cart']; 
+  // const productDetailPattern = /^\/products\/[^\/]+$/; // Matches /products/[id]
+  // const storeDetailPattern = /^\/stores\/[^\/]+$/; // Matches /stores/[id]
 
 
-  // If user is not signed in and trying to access a protected route
-  if (!user && !isPublicRoute) {
-    return NextResponse.redirect(new URL('/login?message=Please sign in to access this page.', request.url));
-  }
+  // // Check if the current path is a dynamic product or store detail page
+  // const isProductDetailPublic = productDetailPattern.test(currentPath);
+  // const isStoreDetailPublic = storeDetailPattern.test(currentPath);
 
-  // If user is signed in and trying to access auth routes (login, signup)
-  if (user && authRoutes.includes(currentPath) && currentPath !== '/update-password') { // allow access to update-password if logged in
-    return NextResponse.redirect(new URL('/', request.url)); // Redirect to homepage or dashboard
-  }
+  // const isPublicRoute = publicAppRoutes.includes(currentPath) || 
+  //                       authRoutes.includes(currentPath) || 
+  //                       currentPath.startsWith('/auth/callback') ||
+  //                       isProductDetailPublic ||
+  //                       isStoreDetailPublic;
+
+
+  // // If user is not signed in and trying to access a protected route
+  // if (!user && !isPublicRoute) {
+  //   return NextResponse.redirect(new URL('/login?message=Please sign in to access this page.', request.url));
+  // }
+
+  // // If user is signed in and trying to access auth routes (login, signup)
+  // if (user && authRoutes.includes(currentPath) && currentPath !== '/update-password') { // allow access to update-password if logged in
+  //   return NextResponse.redirect(new URL('/', request.url)); // Redirect to homepage or dashboard
+  // }
 
   return response;
 }
