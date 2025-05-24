@@ -36,7 +36,7 @@ const NavLink = ({ href, children, icon, onClick, isSheetLink = false }: NavLink
         isActive
           ? (isSheetLink ? "bg-primary/10 text-primary font-semibold" : "text-primary")
           : "text-foreground/70 hover:text-foreground hover:bg-primary/5",
-        isSheetLink ? "px-4" : "" 
+        isSheetLink ? "px-4" : ""
       )}
     >
       <Link href={href}>
@@ -47,11 +47,11 @@ const NavLink = ({ href, children, icon, onClick, isSheetLink = false }: NavLink
   );
 };
 
-const CartButtonContent = ({ itemCount }: { itemCount: number }) => (
+const CartButtonContent = ({ itemCount, hasMounted }: { itemCount: number; hasMounted: boolean }) => (
   <>
     <ShoppingCart size={20} />
     <span className="sr-only">Shopping Cart</span>
-    {itemCount > 0 && (
+    {hasMounted && itemCount > 0 && (
       <Badge variant="destructive" className="absolute -top-1 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
         {itemCount}
       </Badge>
@@ -65,6 +65,11 @@ const Header = () => {
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   useEffect(() => {
     if (mobileMenuOpen) {
@@ -91,7 +96,7 @@ const Header = () => {
           <div className="flex items-center space-x-2">
             <Link href="/cart" passHref>
               <Button variant="ghost" className="relative text-foreground/70 hover:text-foreground">
-                <CartButtonContent itemCount={itemCount} />
+                <CartButtonContent itemCount={itemCount} hasMounted={hasMounted} />
               </Button>
             </Link>
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -115,7 +120,7 @@ const Header = () => {
                  <div className="p-4 border-t mt-auto">
                     <Link href="/cart" passHref>
                         <Button variant="outline" className="w-full relative" onClick={() => setMobileMenuOpen(false)}>
-                            <CartButtonContent itemCount={itemCount} />
+                            <CartButtonContent itemCount={itemCount} hasMounted={hasMounted} />
                             <span className="ml-2">View Cart</span>
                         </Button>
                     </Link>
@@ -128,7 +133,7 @@ const Header = () => {
             {navLinksContent(false)}
             <Link href="/cart" passHref>
               <Button variant="ghost" className="relative text-foreground/70 hover:text-foreground">
-                <CartButtonContent itemCount={itemCount} />
+                <CartButtonContent itemCount={itemCount} hasMounted={hasMounted} />
               </Button>
             </Link>
           </nav>
