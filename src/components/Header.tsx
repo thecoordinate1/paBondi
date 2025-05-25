@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'; // SheetClose removed as it's handled by NavLink onClick
 import { useIsMobile } from '@/hooks/use-mobile';
 import React, { useState, useEffect } from 'react';
 
@@ -85,59 +85,83 @@ const Header = () => {
     </>
   );
 
-  // Default to desktop layout SSR / hydration to avoid mismatch, hook will update
-  const currentLayoutIsMobile = isMobile === undefined ? false : isMobile;
+  const renderNavigation = () => {
+    if (!hasMounted) {
+      // Render a minimal, consistent structure for SSR and initial client render
+      // This could be a placeholder or just the cart button for desktop, 
+      // and a placeholder for the mobile menu button.
+      // For simplicity, we'll render the cart button for desktop-like structure.
+      return (
+        <nav className="flex items-center space-x-2 sm:space-x-4">
+          {/* Placeholder for nav links if needed, or nothing */}
+          <Link href="/cart" passHref>
+            <Button variant="ghost" className="relative text-foreground/70 hover:text-foreground">
+              <CartButtonContent itemCount={itemCount} hasMounted={hasMounted} />
+            </Button>
+          </Link>
+        </nav>
+      );
+    }
+
+    if (isMobile) {
+      return (
+        <div className="flex items-center space-x-2">
+          <Link href="/cart" passHref>
+            <Button variant="ghost" className="relative text-foreground/70 hover:text-foreground">
+              <CartButtonContent itemCount={itemCount} hasMounted={hasMounted} />
+            </Button>
+          </Link>
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="text-foreground/70 hover:text-foreground">
+                <Menu size={24} />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[280px] p-0 flex flex-col">
+              <SheetHeader className="p-4 border-b">
+                 <SheetTitle className="text-left">
+                   {/* Use a span for the onClick to close, Link component is inside Logo */}
+                   <span onClick={() => setMobileMenuOpen(false)} className="cursor-pointer">
+                      <Logo />
+                   </span>
+                 </SheetTitle>
+              </SheetHeader>
+              <nav className="flex flex-col space-y-1 p-4 flex-grow">
+                {navLinksContent(true)}
+              </nav>
+               <div className="p-4 border-t mt-auto">
+                  <Link href="/cart" passHref>
+                      <Button variant="outline" className="w-full relative" onClick={() => setMobileMenuOpen(false)}>
+                          <CartButtonContent itemCount={itemCount} hasMounted={hasMounted} />
+                          <span className="ml-2">View Cart</span>
+                      </Button>
+                  </Link>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+      );
+    }
+
+    // Desktop navigation
+    return (
+      <nav className="flex items-center space-x-2 sm:space-x-4">
+        {navLinksContent(false)}
+        <Link href="/cart" passHref>
+          <Button variant="ghost" className="relative text-foreground/70 hover:text-foreground">
+            <CartButtonContent itemCount={itemCount} hasMounted={hasMounted} />
+          </Button>
+        </Link>
+      </nav>
+    );
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between max-w-screen-xl mx-auto px-4">
         <Logo />
-        {currentLayoutIsMobile ? (
-          <div className="flex items-center space-x-2">
-            <Link href="/cart" passHref>
-              <Button variant="ghost" className="relative text-foreground/70 hover:text-foreground">
-                <CartButtonContent itemCount={itemCount} hasMounted={hasMounted} />
-              </Button>
-            </Link>
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-foreground/70 hover:text-foreground">
-                  <Menu size={24} />
-                  <span className="sr-only">Open menu</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-[280px] p-0 flex flex-col">
-                <SheetHeader className="p-4 border-b">
-                   <SheetTitle className="text-left">
-                     <span onClick={() => setMobileMenuOpen(false)} className="cursor-pointer">
-                        <Logo />
-                     </span>
-                   </SheetTitle>
-                </SheetHeader>
-                <nav className="flex flex-col space-y-1 p-4 flex-grow">
-                  {navLinksContent(true)}
-                </nav>
-                 <div className="p-4 border-t mt-auto">
-                    <Link href="/cart" passHref>
-                        <Button variant="outline" className="w-full relative" onClick={() => setMobileMenuOpen(false)}>
-                            <CartButtonContent itemCount={itemCount} hasMounted={hasMounted} />
-                            <span className="ml-2">View Cart</span>
-                        </Button>
-                    </Link>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
-        ) : (
-          <nav className="flex items-center space-x-2 sm:space-x-4">
-            {navLinksContent(false)}
-            <Link href="/cart" passHref>
-              <Button variant="ghost" className="relative text-foreground/70 hover:text-foreground">
-                <CartButtonContent itemCount={itemCount} hasMounted={hasMounted} />
-              </Button>
-            </Link>
-          </nav>
-        )}
+        {renderNavigation()}
       </div>
     </header>
   );
