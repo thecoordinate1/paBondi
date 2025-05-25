@@ -3,21 +3,21 @@
 
 import * as React from "react"
 import { ArrowLeft, ArrowRight } from "lucide-react"
-import { useCarousel, type UseCarouselParameters } from "embla-carousel-react"
+import { useEmblaCarousel, type EmblaOptionsType, type EmblaCarouselType } from "embla-carousel-react" // Changed import
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
 type CarouselProps = {
-  opts?: UseCarouselParameters
+  opts?: EmblaOptionsType // Changed type
   orientation?: "horizontal" | "vertical"
-  setApi?: (api: ReturnType<typeof useCarousel>[1]) => void
+  setApi?: (api: EmblaCarouselType) => void // Changed type
 }
 
 type CarouselContextProps = {
-  carouselRef: ReturnType<typeof useCarousel>[0]
-  api: ReturnType<typeof useCarousel>[1]
-  opts?: UseCarouselParameters
+  carouselRef: ReturnType<typeof useEmblaCarousel>[0] // Adjusted type
+  api: ReturnType<typeof useEmblaCarousel>[1] // Adjusted type
+  opts?: EmblaOptionsType // Changed type
   orientation?: "horizontal" | "vertical"
   scrollPrev: () => void
   scrollNext: () => void
@@ -52,7 +52,7 @@ const Carousel = React.forwardRef<
     },
     ref
   ) => {
-    const [carouselRef, api] = useCarousel(
+    const [carouselRef, api] = useEmblaCarousel( // Changed hook name
       {
         ...opts,
         axis: orientation === "horizontal" ? "x" : "y",
@@ -62,13 +62,13 @@ const Carousel = React.forwardRef<
     const [canScrollPrev, setCanScrollPrev] = React.useState(false)
     const [canScrollNext, setCanScrollNext] = React.useState(false)
 
-    const onSelect = React.useCallback((api: ReturnType<typeof useCarousel>[1]) => {
-      if (!api) {
+    const onSelect = React.useCallback((currentApi: EmblaCarouselType) => { // Changed type
+      if (!currentApi) {
         return
       }
 
-      setCanScrollPrev(api.canScrollPrev())
-      setCanScrollNext(api.canScrollNext())
+      setCanScrollPrev(currentApi.canScrollPrev())
+      setCanScrollNext(currentApi.canScrollNext())
     }, [])
 
     const scrollPrev = React.useCallback(() => {
@@ -247,7 +247,7 @@ const CarouselNext = React.forwardRef<
 CarouselNext.displayName = "CarouselNext"
 
 export {
-  type CarouselProps,
+  type CarouselProps, // This type will now internally use EmblaOptionsType
   Carousel,
   CarouselContent,
   CarouselItem,
