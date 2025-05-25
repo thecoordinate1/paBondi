@@ -67,13 +67,13 @@ const mapSupabaseProductToAppProduct = async (
     storeName: storeName,
     category: supabaseProduct.category,
     stockCount: supabaseProduct.stock, 
-    averageRating: undefined, 
-    reviewCount: undefined,   
+    averageRating: undefined, // Placeholder - to be implemented if reviews feature is added
+    reviewCount: undefined,   // Placeholder - to be implemented if reviews feature is added
   };
 };
 
 const mapSupabaseStoreToAppStore = (supabaseStore: SupabaseStore): Store => {
-  console.log(`[mapSupabaseStoreToAppStore] Mapping store ID: ${supabaseStore.id}, Name: ${supabaseStore.name}`);
+  // console.log(`[mapSupabaseStoreToAppStore] Mapping store ID: ${supabaseStore.id}, Name: ${supabaseStore.name}`);
   return {
     id: supabaseStore.id,
     name: supabaseStore.name,
@@ -119,16 +119,11 @@ export const getStoreById = async (supabase: SupabaseClient, id: string): Promis
 };
 
 export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
-  console.log('[getAllProducts] Attempting to fetch ALL products (status filter temporarily removed for diagnosis).');
+  console.log('[getAllProducts] Attempting to fetch products with status "active".');
   const { data: productsData, error: productsError } = await supabase
     .from('products')
-    .select('*');
-    // .eq('status', 'published'); // Temporarily commented out for diagnosis
-
-  console.log('[getAllProducts] RAW Supabase Response for products:');
-  console.log('[getAllProducts] productsData:', productsData);
-  console.log('[getAllProducts] productsError:', productsError);
-
+    .select('*')
+    .eq('status', 'active'); 
 
   if (productsError) {
     console.error('[getAllProducts] Supabase error object while fetching products:', {
@@ -137,7 +132,6 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
       hint: productsError.hint,
       code: productsError.code,
     });
-    // Throw the error to make it visible in Next.js error overlay
     throw new Error(`Supabase error fetching products: ${productsError.message}. Code: ${productsError.code}. Details: ${productsError.details}. Hint: ${productsError.hint}.`);
   }
   
@@ -146,37 +140,30 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
     return [];
   }
 
-  console.log(`[getAllProducts] Fetched ${productsData.length} products initially (status filter OFF).`);
+  console.log(`[getAllProducts] Fetched ${productsData.length} products with status "active" initially.`);
   if (productsData.length === 0) {
-    console.warn('[getAllProducts] No products found at all (status filter OFF). Check your database table and RLS policies.');
+    console.warn('[getAllProducts] No products found with status "active". Check your database table and RLS policies.');
     return [];
   }
 
   const productIds = productsData.map(p => p.id);
-  console.log(`[getAllProducts] Product IDs from initial fetch: ${JSON.stringify(productIds)}`);
   
   let imagesData: SupabaseProductImage[] = [];
   if (productIds.length > 0) {
-    console.log(`[getAllProducts] Fetching images for ${productIds.length} product IDs.`);
     const { data: fetchedImagesData, error: imagesError } = await supabase
       .from('product_images')
       .select('*')
       .in('product_id', productIds);
     if (imagesError) {
         console.error('[getAllProducts] Error fetching product images:', imagesError);
-        // Non-critical, products can be shown without images for now.
     } else {
       imagesData = fetchedImagesData || [];
-      console.log(`[getAllProducts] Fetched ${imagesData.length} product images in total.`);
     }
-  } else {
-    console.log('[getAllProducts] No product IDs to fetch images for.');
   }
   
   const storeIds = [...new Set(productsData.map(p => p.store_id).filter(id => !!id))];
   const storesMap = new Map<string, { name: string }>();
   if (storeIds.length > 0) {
-    console.log(`[getAllProducts] Fetching store names for ${storeIds.length} unique store IDs.`);
     const { data: storesData, error: storesError } = await supabase
       .from('stores')
       .select('id, name')
@@ -186,16 +173,10 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
         console.error('[getAllProducts] Error fetching store names for products:', storesError);
     } else if (storesData) {
       storesData.forEach(s => storesMap.set(s.id, { name: s.name }));
-      console.log(`[getAllProducts] Successfully mapped ${storesMap.size} store IDs to names.`);
-    } else {
-      console.warn('[getAllProducts] No store data returned for product store IDs.');
     }
-  } else {
-    console.log('[getAllProducts] No store IDs to fetch names for.');
   }
   
   try {
-    console.log(`[getAllProducts] Starting mapping of ${productsData.length} products.`);
     const mappedProducts = await Promise.all(
       productsData.map(p => mapSupabaseProductToAppProduct(supabase, p, imagesData, storesMap))
     );
@@ -217,7 +198,7 @@ export const getProductById = async (supabase: SupabaseClient, id: string): Prom
     .from('products')
     .select('*')
     .eq('id', id)
-    // .eq('status', 'published') // Consider if this should also be temporarily removed for diagnosis if needed
+    .eq('status', 'active') 
     .single();
 
   if (productError) {
@@ -225,7 +206,7 @@ export const getProductById = async (supabase: SupabaseClient, id: string): Prom
         console.error(`[getProductById] Error fetching product ${id}:`, productError);
         throw new Error(`Failed to fetch product ${id}: ${productError.message}`);
      }
-    console.log(`[getProductById] No product found with ID: ${id} (or it's not published, if filter active).`);
+    console.log(`[getProductById] No product found with ID: ${id} (or it's not active).`);
     return undefined;
   }
   if (!productData) {
@@ -242,7 +223,7 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
     .from('products')
     .select('*')
     .eq('store_id', storeId)
-    .eq('status', 'published');
+    .eq('status', 'active');
 
   if (productsError) {
     console.error(`[getProductsByStoreId] Error fetching products for store ${storeId}:`, productsError);
@@ -253,7 +234,7 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
     return [];
   }
   if (productsData.length === 0) {
-    console.log(`[getProductsByStoreId] No published products found for store ID: ${storeId}.`);
+    console.log(`[getProductsByStoreId] No active products found for store ID: ${storeId}.`);
     return [];
   }
   console.log(`[getProductsByStoreId] Fetched ${productsData.length} products for store ID: ${storeId}.`);
@@ -266,7 +247,6 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
   }
   if(storeData) {
     storesMap.set(storeData.id, {name: storeData.name});
-    console.log(`[getProductsByStoreId] Fetched store name for mapping: ${storeData.name}`);
   } else {
      console.warn(`[getProductsByStoreId] Could not fetch store name for store ID: ${storeId}`);
   }
@@ -294,19 +274,14 @@ export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store
 };
 
 export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
-  console.log('[getFeaturedProducts] Fetching featured (most recent 4, status filter temporarily removed for diagnosis)...');
+  console.log('[getFeaturedProducts] Fetching featured (most recent 4 active) products...');
   const { data: productsData, error: productsError } = await supabase
     .from('products')
     .select('*')
-    // .eq('status', 'published') // Temporarily commented out for diagnosis
+    .eq('status', 'active') 
     .order('created_at', { ascending: false })
     .limit(4);
   
-  console.log('[getFeaturedProducts] RAW Supabase Response for featured products:');
-  console.log('[getFeaturedProducts] productsData:', productsData);
-  console.log('[getFeaturedProducts] productsError:', productsError);
-
-
   if (productsError) {
     console.error('[getFeaturedProducts] Supabase error object while fetching featured products:', {
       message: productsError.message,
@@ -321,13 +296,30 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
     return [];
   }
   if (productsData.length === 0) {
-    console.log('[getFeaturedProducts] No products found to feature (status filter OFF).');
+    console.log('[getFeaturedProducts] No active products found to feature.');
     return [];
   }
-  console.log(`[getFeaturedProducts] Fetched ${productsData.length} products to feature (status filter OFF).`);
+  console.log(`[getFeaturedProducts] Fetched ${productsData.length} products to feature.`);
   
+  // Fetch associated images and store names for featured products
+  // This approach minimizes individual lookups within mapSupabaseProductToAppProduct for featured items
+  const productIds = productsData.map(p => p.id);
+  let imagesData: SupabaseProductImage[] = [];
+  if (productIds.length > 0) {
+    const { data: fetchedImages, error: imgError } = await supabase.from('product_images').select('*').in('product_id', productIds);
+    if (imgError) console.error('[getFeaturedProducts] Error fetching images for featured products:', imgError);
+    else imagesData = fetchedImages || [];
+  }
+
+  const storeIds = [...new Set(productsData.map(p => p.store_id).filter(Boolean))];
+  const storesMap = new Map<string, { name: string }>();
+  if (storeIds.length > 0) {
+    const { data: fetchedStores, error: strError } = await supabase.from('stores').select('id, name').in('id', storeIds as string[]);
+    if (strError) console.error('[getFeaturedProducts] Error fetching store names for featured products:', strError);
+    else if (fetchedStores) fetchedStores.forEach(s => storesMap.set(s.id, { name: s.name }));
+  }
+
   return Promise.all(
-    productsData.map(p => mapSupabaseProductToAppProduct(supabase, p)) // This will fetch images/stores individually for each featured product
+    productsData.map(p => mapSupabaseProductToAppProduct(supabase, p, imagesData, storesMap))
   );
 };
-
