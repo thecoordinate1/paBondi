@@ -87,7 +87,7 @@ export const getAllStores = async (supabase: SupabaseClient): Promise<Store[]> =
   const { data, error } = await supabase
     .from('stores')
     .select('*')
-    .eq('status', 'active');
+    .eq('status', 'Active'); // Assuming 'Active' status for stores as well
 
   if (error) {
     console.error('[getAllStores] Error fetching stores:', error);
@@ -103,7 +103,7 @@ export const getStoreById = async (supabase: SupabaseClient, id: string): Promis
     .from('stores')
     .select('*')
     .eq('id', id)
-    .eq('status', 'active')
+    .eq('status', 'Active') // Assuming 'Active' status for stores
     .single();
 
   if (error) {
@@ -119,11 +119,11 @@ export const getStoreById = async (supabase: SupabaseClient, id: string): Promis
 };
 
 export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
-  console.log('[getAllProducts] Attempting to fetch products with status "active".');
+  console.log('[getAllProducts] Attempting to fetch products with status "Active".');
   const { data: productsData, error: productsError } = await supabase
     .from('products')
     .select('*')
-    .eq('status', 'active'); 
+    .eq('status', 'Active'); 
 
   if (productsError) {
     console.error('[getAllProducts] Supabase error object while fetching products:', {
@@ -140,9 +140,9 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
     return [];
   }
 
-  console.log(`[getAllProducts] Fetched ${productsData.length} products with status "active" initially.`);
+  console.log(`[getAllProducts] Fetched ${productsData.length} products with status "Active" initially.`);
   if (productsData.length === 0) {
-    console.warn('[getAllProducts] No products found with status "active". Check your database table and RLS policies.');
+    console.warn('[getAllProducts] No products found with status "Active". Check your database table and RLS policies.');
     return [];
   }
 
@@ -198,7 +198,7 @@ export const getProductById = async (supabase: SupabaseClient, id: string): Prom
     .from('products')
     .select('*')
     .eq('id', id)
-    .eq('status', 'active') 
+    .eq('status', 'Active') 
     .single();
 
   if (productError) {
@@ -206,7 +206,7 @@ export const getProductById = async (supabase: SupabaseClient, id: string): Prom
         console.error(`[getProductById] Error fetching product ${id}:`, productError);
         throw new Error(`Failed to fetch product ${id}: ${productError.message}`);
      }
-    console.log(`[getProductById] No product found with ID: ${id} (or it's not active).`);
+    console.log(`[getProductById] No product found with ID: ${id} (or it's not Active).`);
     return undefined;
   }
   if (!productData) {
@@ -223,7 +223,7 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
     .from('products')
     .select('*')
     .eq('store_id', storeId)
-    .eq('status', 'active');
+    .eq('status', 'Active');
 
   if (productsError) {
     console.error(`[getProductsByStoreId] Error fetching products for store ${storeId}:`, productsError);
@@ -234,7 +234,7 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
     return [];
   }
   if (productsData.length === 0) {
-    console.log(`[getProductsByStoreId] No active products found for store ID: ${storeId}.`);
+    console.log(`[getProductsByStoreId] No Active products found for store ID: ${storeId}.`);
     return [];
   }
   console.log(`[getProductsByStoreId] Fetched ${productsData.length} products for store ID: ${storeId}.`);
@@ -261,7 +261,7 @@ export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store
   const { data, error } = await supabase
     .from('stores')
     .select('*')
-    .eq('status', 'active')
+    .eq('status', 'Active') // Assuming 'Active' status for stores
     .order('created_at', { ascending: false })
     .limit(3);
 
@@ -278,7 +278,7 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
   const { data: productsData, error: productsError } = await supabase
     .from('products')
     .select('*')
-    .eq('status', 'active') 
+    .eq('status', 'Active') 
     .order('created_at', { ascending: false })
     .limit(4);
   
@@ -296,13 +296,11 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
     return [];
   }
   if (productsData.length === 0) {
-    console.log('[getFeaturedProducts] No active products found to feature.');
+    console.log('[getFeaturedProducts] No Active products found to feature.');
     return [];
   }
   console.log(`[getFeaturedProducts] Fetched ${productsData.length} products to feature.`);
   
-  // Fetch associated images and store names for featured products
-  // This approach minimizes individual lookups within mapSupabaseProductToAppProduct for featured items
   const productIds = productsData.map(p => p.id);
   let imagesData: SupabaseProductImage[] = [];
   if (productIds.length > 0) {
@@ -323,3 +321,4 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
     productsData.map(p => mapSupabaseProductToAppProduct(supabase, p, imagesData, storesMap))
   );
 };
+
