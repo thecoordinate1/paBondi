@@ -1,5 +1,5 @@
 
-import { getProductById, getStoreById, getProductsByStoreId } from '@/lib/data';
+import { getProductById, getStoreById, getProductsByStoreId, getAllProducts } from '@/lib/data'; // Added getAllProducts
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -163,7 +163,6 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
 }
 
 // generateStaticParams logic for products
-// import { getAllProducts } from '@/lib/data'; // Already imported indirectly
 import { createClient as createSupabaseServerClient } from '@/lib/supabase/server';
 import type { CookieOptions } from '@supabase/ssr';
 
