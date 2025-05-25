@@ -9,35 +9,51 @@ const mapSupabaseProductToAppProduct = async (
   allProductImages?: SupabaseProductImage[], 
   allStoresMap?: Map<string, { name: string }> 
 ): Promise<Product> => {
+  // console.log(`[mapSupabaseProductToAppProduct] Mapping product ID: ${supabaseProduct.id}, Name: ${supabaseProduct.name}`);
+  
   let productImagesData = allProductImages;
   if (!productImagesData) {
+    // console.log(`[mapSupabaseProductToAppProduct] Product images not pre-fetched for ${supabaseProduct.id}. Fetching now.`);
     const { data, error } = await supabase
       .from('product_images')
       .select('image_url, order, product_id, id')
       .eq('product_id', supabaseProduct.id)
       .order('order');
-    if (error) console.error(`Error fetching images for product ${supabaseProduct.id} (${supabaseProduct.name}):`, error);
+    if (error) console.error(`[mapSupabaseProductToAppProduct] Error fetching images for product ${supabaseProduct.id} (${supabaseProduct.name}):`, error);
     productImagesData = data || [];
+  } else {
+    // console.log(`[mapSupabaseProductToAppProduct] Using pre-fetched images for ${supabaseProduct.id}. Found ${productImagesData.filter(img => img.product_id === supabaseProduct.id).length} relevant images.`);
   }
 
   const productImages = productImagesData
     .filter(img => img.product_id === supabaseProduct.id)
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
     .map(img => img.image_url);
+  
+  // console.log(`[mapSupabaseProductToAppProduct] Product ${supabaseProduct.id} has ${productImages.length} images after filtering and sorting.`);
 
   let storeName = 'Unknown Store';
   if (allStoresMap && supabaseProduct.store_id && allStoresMap.has(supabaseProduct.store_id)) {
     storeName = allStoresMap.get(supabaseProduct.store_id)!.name;
+    // console.log(`[mapSupabaseProductToAppProduct] Found store name in pre-fetched map for product ${supabaseProduct.id}: ${storeName}`);
   } else if (supabaseProduct.store_id) {
+    // console.log(`[mapSupabaseProductToAppProduct] Store name not in map for product ${supabaseProduct.id}. Fetching store ${supabaseProduct.store_id}.`);
     const { data: storeData, error: storeError } = await supabase
       .from('stores')
       .select('name')
       .eq('id', supabaseProduct.store_id)
       .single();
-    if (storeError && storeError.code !== 'PGRST116') {
-      console.error(`Error fetching store name for product ${supabaseProduct.id} (${supabaseProduct.name}) (Store ID: ${supabaseProduct.store_id}):`, storeError);
+    if (storeError && storeError.code !== 'PGRST116') { // PGRST116 is "No rows found", not necessarily an error for a single()
+      console.error(`[mapSupabaseProductToAppProduct] Error fetching store name for product ${supabaseProduct.id} (Store ID: ${supabaseProduct.store_id}):`, storeError);
     }
-    if (storeData) storeName = storeData.name;
+    if (storeData) {
+      storeName = storeData.name;
+      // console.log(`[mapSupabaseProductToAppProduct] Fetched store name for product ${supabaseProduct.id}: ${storeName}`);
+    } else {
+      // console.warn(`[mapSupabaseProductToAppProduct] Could not fetch store name for product ${supabaseProduct.id} (Store ID: ${supabaseProduct.store_id}).`);
+    }
+  } else {
+    // console.log(`[mapSupabaseProductToAppProduct] Product ${supabaseProduct.id} has no store_id.`);
   }
 
 
@@ -50,7 +66,7 @@ const mapSupabaseProductToAppProduct = async (
     storeId: supabaseProduct.store_id,
     storeName: storeName,
     category: supabaseProduct.category,
-    stockCount: supabaseProduct.stock,
+    stockCount: supabaseProduct.stock, // Make sure 'stock' exists on SupabaseProduct and is nullable or has a default.
     averageRating: undefined, // Placeholder - to be implemented with actual review data
     reviewCount: undefined,   // Placeholder - to be implemented with actual review data
   };
@@ -90,7 +106,7 @@ export const getStoreById = async (supabase: SupabaseClient, id: string): Promis
     .single();
 
   if (error) {
-    if (error.code !== 'PGRST116') { // PGRST116 means no rows found, which is valid for a single() query
+    if (error.code !== 'PGRST116') { 
       console.error(`[getStoreById] Error fetching store ${id}:`, error);
       throw new Error(`Failed to fetch store ${id}: ${error.message}`);
     }
@@ -109,12 +125,18 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
     .eq('status', 'published');
 
   if (productsError) {
-    console.error('[getAllProducts] Supabase error fetching products:', productsError);
-    throw new Error(`Supabase error fetching products: ${productsError.message}. Details: ${productsError.details}. Hint: ${productsError.hint}`);
+    console.error('[getAllProducts] Supabase error object while fetching products:', {
+      message: productsError.message,
+      details: productsError.details,
+      hint: productsError.hint,
+      code: productsError.code,
+    });
+    throw new Error(`Supabase error fetching products: ${productsError.message}. Details: ${productsError.details}. Hint: ${productsError.hint}. Code: ${productsError.code}`);
   }
   
   if (!productsData) {
-    console.warn('[getAllProducts] productsData is null after fetching. This should not happen if no error was thrown.');
+    // This case should ideally be caught by productsError, but as a safeguard:
+    console.warn('[getAllProducts] productsData is null after fetching, and no error was thrown by Supabase. This is unexpected.');
     return [];
   }
 
@@ -152,7 +174,6 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
 
     if (storesError) {
         console.error('[getAllProducts] Error fetching store names for products:', storesError);
-        // Store names might not be critical for all views, but good to log.
     }
     if (storesData) {
       storesData.forEach(s => storesMap.set(s.id, { name: s.name }));
@@ -170,9 +191,7 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
     console.log(`[getAllProducts] Successfully mapped ${mappedProducts.length} products.`);
 
     if (productsData.length > 0 && mappedProducts.length === 0) {
-      console.error('[getAllProducts] CRITICAL: Initial products were fetched, but mapping resulted in zero products. Check mapping logic and individual item errors.');
-      // Optionally, you could throw an error here if this state is unexpected
-      // throw new Error("Product mapping failed: initial products found but none were successfully mapped.");
+      console.error('[getAllProducts] CRITICAL: Initial products were fetched, but mapping resulted in zero products. Check mapping logic and individual item errors in mapSupabaseProductToAppProduct.');
     }
     return mappedProducts;
   } catch (mappingError) {
@@ -191,7 +210,7 @@ export const getProductById = async (supabase: SupabaseClient, id: string): Prom
     .single();
 
   if (productError) {
-     if (productError.code !== 'PGRST116') { // PGRST116 means no rows found
+     if (productError.code !== 'PGRST116') { 
         console.error(`[getProductById] Error fetching product ${id}:`, productError);
         throw new Error(`Failed to fetch product ${id}: ${productError.message}`);
      }
@@ -273,8 +292,13 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
     .limit(4);
 
   if (productsError) {
-    console.error('[getFeaturedProducts] Error fetching featured products:', productsError);
-    throw new Error(`Failed to fetch featured products: ${productsError.message}`);
+    console.error('[getFeaturedProducts] Supabase error object while fetching featured products:', {
+      message: productsError.message,
+      details: productsError.details,
+      hint: productsError.hint,
+      code: productsError.code,
+    });
+    throw new Error(`Failed to fetch featured products: ${productsError.message}. Details: ${productsError.details}. Hint: ${productsError.hint}. Code: ${productsError.code}`);
   }
   if (!productsData) {
     console.warn('[getFeaturedProducts] productsData is null for featured products.');
@@ -290,4 +314,3 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
     productsData.map(p => mapSupabaseProductToAppProduct(supabase, p))
   );
 };
-
