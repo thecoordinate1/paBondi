@@ -3,21 +3,21 @@
 
 import * as React from "react"
 import { ArrowLeft, ArrowRight } from "lucide-react"
-import { useEmblaCarousel, type EmblaOptionsType, type EmblaCarouselType } from "embla-carousel-react" // Changed import
+import useEmblaCarousel, { type EmblaOptionsType, type EmblaCarouselType } from 'embla-carousel-react'; // Corrected import
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
 type CarouselProps = {
-  opts?: EmblaOptionsType // Changed type
+  opts?: EmblaOptionsType
   orientation?: "horizontal" | "vertical"
-  setApi?: (api: EmblaCarouselType) => void // Changed type
+  setApi?: (api: EmblaCarouselType) => void
 }
 
 type CarouselContextProps = {
-  carouselRef: ReturnType<typeof useEmblaCarousel>[0] // Adjusted type
-  api: ReturnType<typeof useEmblaCarousel>[1] // Adjusted type
-  opts?: EmblaOptionsType // Changed type
+  carouselRef: ReturnType<typeof useEmblaCarousel>[0]
+  api: ReturnType<typeof useEmblaCarousel>[1]
+  opts?: EmblaOptionsType
   orientation?: "horizontal" | "vertical"
   scrollPrev: () => void
   scrollNext: () => void
@@ -52,7 +52,7 @@ const Carousel = React.forwardRef<
     },
     ref
   ) => {
-    const [carouselRef, api] = useEmblaCarousel( // Changed hook name
+    const [carouselRef, api] = useEmblaCarousel(
       {
         ...opts,
         axis: orientation === "horizontal" ? "x" : "y",
@@ -62,7 +62,7 @@ const Carousel = React.forwardRef<
     const [canScrollPrev, setCanScrollPrev] = React.useState(false)
     const [canScrollNext, setCanScrollNext] = React.useState(false)
 
-    const onSelect = React.useCallback((currentApi: EmblaCarouselType) => { // Changed type
+    const onSelect = React.useCallback((currentApi: EmblaCarouselType) => {
       if (!currentApi) {
         return
       }
@@ -247,7 +247,7 @@ const CarouselNext = React.forwardRef<
 CarouselNext.displayName = "CarouselNext"
 
 export {
-  type CarouselProps, // This type will now internally use EmblaOptionsType
+  type CarouselProps,
   Carousel,
   CarouselContent,
   CarouselItem,
