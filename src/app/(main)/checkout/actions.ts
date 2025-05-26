@@ -30,12 +30,11 @@ export async function placeOrderAction(
   try {
     for (const item of cartItems) {
       if (item.stockCount === undefined) { // Should always have stockCount from Product type now
-        // Fetch if undefined, though ideally it's always present from initial product load
         const currentStock = await getProductStock(supabase, item.id);
         if (currentStock === null) {
           return { success: false, error: `Product ${item.name} not found.` };
         }
-        item.stockCount = currentStock; // Update item with fetched stock
+        item.stockCount = currentStock; 
       }
       if (item.stockCount < item.quantity) {
         return { success: false, error: `Not enough stock for ${item.name}. Only ${item.stockCount} available.` };
@@ -52,22 +51,20 @@ export async function placeOrderAction(
   const shippingLongitude = formData.longitude ? parseFloat(formData.longitude) : null;
 
   const orderInput: CreateOrderInput = {
-    store_id: cartItems[0].storeId, // Simplification: use first item's store_id
+    store_id: cartItems[0].storeId, 
     customer_name: formData.name,
     customer_email: formData.email,
     order_date: new Date().toISOString(),
     total_amount: totalAmount,
-    status: 'Pending', // Initial status
+    status: 'Pending', 
     shipping_address: shippingAddress,
-    billing_address: shippingAddress, // Assuming billing is same as shipping for now
+    billing_address: shippingAddress, 
     shipping_latitude: Number.isNaN(shippingLatitude) ? null : shippingLatitude,
     shipping_longitude: Number.isNaN(shippingLongitude) ? null : shippingLongitude,
   };
 
   try {
     // 1. Create the order
-    // Note: The createOrder function in lib/data.ts will receive lat/lng,
-    // but won't attempt to save them unless the DB schema is updated.
     const createdOrder = await createOrder(supabase, orderInput);
     if (!createdOrder || !createdOrder.id) {
       throw new Error('Order creation failed or did not return an ID.');
@@ -91,10 +88,14 @@ export async function placeOrderAction(
       await updateProductStock(supabase, item.id, newStockCount);
     }
     
+    // 4. Simulate delivery dispatch (log for now)
+    console.log(`[placeOrderAction] SIMULATION: Delivery dispatch for order ${orderId} would be initiated here.`);
+    console.log(`[placeOrderAction] SIMULATION: Delivery address: ${shippingAddress}, Lat: ${orderInput.shipping_latitude}, Lng: ${orderInput.shipping_longitude}`);
+
     // If all steps are successful
     return { success: true, orderId: orderId, message: 'Order placed successfully!' };
 
-  } catch (error) {
+  } catch (error)
     console.error('Error placing order:', error);
     return { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred while placing your order.' };
   }

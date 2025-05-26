@@ -160,7 +160,6 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
   }
   console.log(`[getAllProducts] Fetched ${productsData.length} products with status "Active" initially.`);
   
-  // Optimized: Fetch all images and store names for these products in batch
   const productIds = productsData.map(p => p.id);
   let allProductImages: SupabaseProductImage[] = [];
   if (productIds.length > 0) {
@@ -176,10 +175,12 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
     if (storeError) console.error('[getAllProducts] Error fetching store names:', storeError);
     else stores?.forEach(s => storesMap.set(s.id, { name: s.name }));
   }
-
-  return Promise.all(
+  
+  const mappedProducts = await Promise.all(
     productsData.map(p => mapSupabaseProductToAppProduct(supabase, p as SupabaseProduct, allProductImages, storesMap))
   );
+  console.log(`[getAllProducts] Successfully mapped ${mappedProducts.length} products.`);
+  return mappedProducts;
 };
 
 export const getProductById = async (supabase: SupabaseClient, id: string): Promise<Product | undefined> => {
@@ -221,7 +222,6 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
     else allProductImages = images || [];
   }
   
-  // Fetch store name for these products
   const storesMap = new Map<string, { name: string }>();
   const { data: storeData, error: storeError } = await supabase.from('stores').select('id, name').eq('id', storeId).eq('status', 'Active').single();
   if(storeError && storeError.code !== 'PGRST116') console.error(`[getProductsByStoreId] Error fetching store name for store ${storeId}:`, storeError);
@@ -272,27 +272,20 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
     else stores?.forEach(s => storesMap.set(s.id, { name: s.name }));
   }
 
-  return Promise.all(
+  const mappedProducts = await Promise.all(
     productsData.map(p => mapSupabaseProductToAppProduct(supabase, p as SupabaseProduct, allProductImages, storesMap))
   );
+  console.log(`[getFeaturedProducts] Successfully mapped ${mappedProducts.length} featured products.`);
+  return mappedProducts;
 };
 
 // Order creation functions
 export const createOrder = async (supabase: SupabaseClient, orderInput: CreateOrderInput): Promise<SupabaseOrder> => {
-  console.log('[createOrder] Attempting to create order with input (lat/lng may be present but not saved yet):', orderInput);
+  console.log('[createOrder] Attempting to create order with input (including lat/lng if provided):', orderInput);
   
-  // Construct the object for insertion, EXCLUDING lat/lng for now
-  // as the DB schema doesn't have these columns yet.
-  const { shipping_latitude, shipping_longitude, ...dbOrderInput } = orderInput;
-
-  // Log if lat/lng were provided, so we know they are being passed correctly from the form
-  if (shipping_latitude !== undefined || shipping_longitude !== undefined) {
-    console.log(`[createOrder] Latitude: ${shipping_latitude}, Longitude: ${shipping_longitude} received, but will not be saved to DB until schema is updated.`);
-  }
-
   const { data, error } = await supabase
     .from('orders')
-    .insert([dbOrderInput]) // Use the object without lat/lng
+    .insert([orderInput]) // Pass the full orderInput, including lat/lng
     .select()
     .single(); 
 
@@ -351,3 +344,4 @@ export const getProductStock = async (supabase: SupabaseClient, productId: strin
   }
   return data?.stock ?? null;
 };
+
