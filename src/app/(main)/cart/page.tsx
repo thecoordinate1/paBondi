@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Trash2, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingBag, CreditCard } from 'lucide-react'; // Added CreditCard
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function CartPage() {
@@ -100,7 +100,12 @@ export default function CartPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-2">
-              <Button size="lg" className="w-full">Proceed to Checkout</Button>
+              <Link href="/checkout" className="w-full">
+                <Button size="lg" className="w-full">
+                  <CreditCard size={18} className="mr-2" />
+                  Proceed to Checkout
+                </Button>
+              </Link>
               <Button variant="outline" className="w-full" onClick={clearCart}>Clear Cart</Button>
             </CardFooter>
           </Card>

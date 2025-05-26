@@ -15,7 +15,11 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          return request.cookies.get(name)?.value
+          // The error "cookies() should be awaited before using its value" for cookieStore.get(name)
+          // is unusual here as cookieStore is the result of cookies() and get is synchronous.
+          // This explicit check is a precaution.
+          const cookie = request.cookies.get(name);
+          return cookie ? cookie.value : undefined;
         },
         set(name: string, value: string, options: CookieOptions) {
           // If you are using Next.js middleware, please refer to the guide below for fixing cookies issues:
@@ -38,8 +42,15 @@ export async function middleware(request: NextRequest) {
   // const currentPath = request.nextUrl.pathname;
 
   // const authRoutes = ['/login', '/signup', '/forgot-password', '/update-password'];
+  
   // // Define public routes that do not require authentication.
-  // const publicAppRoutes = ['/', '/products', '/stores', '/cart']; 
+  // const publicAppRoutes = [
+  //   '/', 
+  //   '/products', 
+  //   '/stores', 
+  //   '/cart',
+  //   '/checkout' // Add checkout to public routes
+  // ]; 
   // const productDetailPattern = /^\/products\/[^\/]+$/; // Matches /products/[id]
   // const storeDetailPattern = /^\/stores\/[^\/]+$/; // Matches /stores/[id]
 

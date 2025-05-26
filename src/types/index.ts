@@ -25,3 +25,42 @@ export interface Store {
 export interface CartItem extends Product {
   quantity: number;
 }
+
+export interface OrderFormData {
+  name: string;
+  email: string;
+  streetAddress: string;
+  city: string;
+  stateProvince: string;
+  zipPostalCode: string;
+  country: string;
+}
+
+// Represents the structure for creating an order in the database
+export interface CreateOrderInput {
+  store_id: string; // From the first item in the cart for simplicity
+  customer_name: string;
+  customer_email: string;
+  order_date: string; // ISO string
+  total_amount: number;
+  status: string; // e.g., "Pending", "Processing"
+  shipping_address: string;
+  billing_address: string; // Can be same as shipping for now
+  // Optional fields like shipping_method, payment_method, tracking_number can be added later
+}
+
+// Represents the structure for creating order items in the database
+export interface CreateOrderItemInput {
+  order_id: string;
+  product_id: string;
+  product_name_snapshot: string;
+  quantity: number;
+  price_per_unit_snapshot: number;
+  product_image_url_snapshot?: string | null;
+}
+
+// Represents an order as fetched or used in the app context (can be expanded)
+export interface AppOrder extends CreateOrderInput {
+  id: string;
+  items: CartItem[]; // Or a more specific AppOrderItem type if needed
+}
