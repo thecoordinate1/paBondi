@@ -34,6 +34,8 @@ export interface OrderFormData {
   stateProvince: string;
   zipPostalCode: string;
   country: string;
+  latitude?: string; // Optional latitude
+  longitude?: string; // Optional longitude
 }
 
 // Represents the structure for creating an order in the database
@@ -46,6 +48,8 @@ export interface CreateOrderInput {
   status: string; // e.g., "Pending", "Processing"
   shipping_address: string;
   billing_address: string; // Can be same as shipping for now
+  shipping_latitude?: number | null; // Optional latitude
+  shipping_longitude?: number | null; // Optional longitude
   // Optional fields like shipping_method, payment_method, tracking_number can be added later
 }
 
@@ -64,3 +68,4 @@ export interface AppOrder extends CreateOrderInput {
   id: string;
   items: CartItem[]; // Or a more specific AppOrderItem type if needed
 }
+

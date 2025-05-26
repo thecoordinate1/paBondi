@@ -26,6 +26,12 @@ const checkoutFormSchema = z.object({
   stateProvince: z.string().min(2, { message: "State/Province is too short." }),
   zipPostalCode: z.string().min(3, { message: "ZIP/Postal code is too short." }),
   country: z.string().min(2, { message: "Country name is too short." }),
+  latitude: z.string().optional().refine(val => !val || /^-?([1-8]?[0-9]|[1-9]0)\.{1}\d{1,6}$/.test(val) || /^-?([1-8]?[0-9]|[1-9]0)$/.test(val), {
+    message: "Invalid latitude format."
+  }),
+  longitude: z.string().optional().refine(val => !val || /^-?((1[0-7]|[1-9])?[0-9]|180)\.{1}\d{1,6}$/.test(val) || /^-?((1[0-7]|[1-9])?[0-9]|180)$/.test(val), {
+    message: "Invalid longitude format."
+  }),
 });
 
 export default function CheckoutPage() {
@@ -97,7 +103,7 @@ export default function CheckoutPage() {
       <div className="grid lg:grid-cols-3 gap-8 items-start">
         {/* Order Summary Column */}
         <div className="lg:col-span-1 lg:order-last">
-          <Card className="sticky top-20 shadow-lg">
+          <Card className="sticky top-20 shadow-xl">
             <CardHeader>
               <CardTitle className="text-2xl">Order Summary</CardTitle>
             </CardHeader>
@@ -132,7 +138,7 @@ export default function CheckoutPage() {
 
         {/* Shipping Details Form Column */}
         <div className="lg:col-span-2 lg:order-first">
-          <Card className="shadow-lg">
+          <Card className="shadow-xl">
             <CardHeader>
               <CardTitle className="text-2xl">Shipping Details</CardTitle>
             </CardHeader>
@@ -177,6 +183,21 @@ export default function CheckoutPage() {
                     {errors.country && <p className="text-sm text-destructive mt-1">{errors.country.message}</p>}
                   </div>
                 </div>
+                 <div className="grid sm:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="latitude">Latitude (Optional)</Label>
+                    <Input id="latitude" {...register("latitude")} className="mt-1" placeholder="e.g., 34.0522" />
+                    {errors.latitude && <p className="text-sm text-destructive mt-1">{errors.latitude.message}</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="longitude">Longitude (Optional)</Label>
+                    <Input id="longitude" {...register("longitude")} className="mt-1" placeholder="e.g., -118.2437"/>
+                    {errors.longitude && <p className="text-sm text-destructive mt-1">{errors.longitude.message}</p>}
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  For precise delivery, you can provide coordinates. A map-based picker will be added in the future.
+                </p>
                 <CardFooter className="p-0 pt-4">
                   <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
                     {isSubmitting ? 'Placing Order...' : 'Place Order & Simulate Payment'}

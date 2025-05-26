@@ -47,6 +47,10 @@ export async function placeOrderAction(
   }
 
   const shippingAddress = `${formData.streetAddress}, ${formData.city}, ${formData.stateProvince} ${formData.zipPostalCode}, ${formData.country}`;
+  
+  const shippingLatitude = formData.latitude ? parseFloat(formData.latitude) : null;
+  const shippingLongitude = formData.longitude ? parseFloat(formData.longitude) : null;
+
   const orderInput: CreateOrderInput = {
     store_id: cartItems[0].storeId, // Simplification: use first item's store_id
     customer_name: formData.name,
@@ -56,10 +60,14 @@ export async function placeOrderAction(
     status: 'Pending', // Initial status
     shipping_address: shippingAddress,
     billing_address: shippingAddress, // Assuming billing is same as shipping for now
+    shipping_latitude: Number.isNaN(shippingLatitude) ? null : shippingLatitude,
+    shipping_longitude: Number.isNaN(shippingLongitude) ? null : shippingLongitude,
   };
 
   try {
     // 1. Create the order
+    // Note: The createOrder function in lib/data.ts will receive lat/lng,
+    // but won't attempt to save them unless the DB schema is updated.
     const createdOrder = await createOrder(supabase, orderInput);
     if (!createdOrder || !createdOrder.id) {
       throw new Error('Order creation failed or did not return an ID.');
@@ -78,9 +86,6 @@ export async function placeOrderAction(
     await createOrderItems(supabase, orderItemsInput);
 
     // 3. Update product stock
-    // This should ideally be in a transaction, but Supabase JS client doesn't directly support transactions in edge functions/server actions easily.
-    // We'll do it sequentially. If any stock update fails, we're in a partial state.
-    // A more robust solution would involve a database function/trigger or a queue system.
     for (const item of cartItems) {
       const newStockCount = (item.stockCount as number) - item.quantity; // stockCount validated above
       await updateProductStock(supabase, item.id, newStockCount);
@@ -91,8 +96,6 @@ export async function placeOrderAction(
 
   } catch (error) {
     console.error('Error placing order:', error);
-    // TODO: Implement more sophisticated error handling / rollback if possible
-    // For example, if order items fail after order is created, or stock update fails.
     return { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred while placing your order.' };
   }
 }
