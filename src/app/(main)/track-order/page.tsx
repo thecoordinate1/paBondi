@@ -1,0 +1,201 @@
+
+"use client";
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { fetchOrderAction } from './actions';
+import type { AppOrder, AppOrderItem } from '@/types';
+import Image from 'next/image';
+import { PackageSearch, AlertCircle, Info, ShoppingBag, UserCircle, MapPin, CalendarDays, Hash, Truck, CreditCard, Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
+
+export default function TrackOrderPage() {
+  const [orderIdInput, setOrderIdInput] = useState('');
+  const [order, setOrder] = useState<AppOrder | null | undefined>(undefined); // undefined initially, null if not found
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleTrackOrder = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!orderIdInput.trim()) {
+      setError("Please enter an Order ID.");
+      setOrder(undefined);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    setOrder(undefined);
+
+    const result = await fetchOrderAction(orderIdInput.trim());
+    if (result.success) {
+      setOrder(result.order); // Can be null if not found, or an AppOrder object
+      if (!result.order) {
+        setError(`No order found with ID: ${orderIdInput.trim()}`);
+      }
+    } else {
+      setError(result.error || "Failed to fetch order details.");
+      setOrder(null);
+    }
+    setIsLoading(false);
+  };
+
+  const OrderItemCard = ({ item }: { item: AppOrderItem }) => (
+    <div className="flex items-center gap-4 py-3 border-b last:border-b-0">
+      <Image
+        src={item.imageUrl || 'https://placehold.co/80x80.png'}
+        alt={item.name}
+        width={80}
+        height={80}
+        className="rounded-md aspect-square object-cover border"
+        data-ai-hint="order item product"
+      />
+      <div className="flex-grow">
+        <h4 className="font-semibold">{item.name}</h4>
+        <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+        <p className="text-sm text-muted-foreground">
+          Price: ${item.pricePerUnit.toFixed(2)} each
+        </p>
+      </div>
+      <p className="font-semibold text-lg">${item.totalPrice.toFixed(2)}</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-8 max-w-3xl mx-auto">
+      <div className="text-center">
+        <PackageSearch className="mx-auto h-16 w-16 text-primary mb-4" />
+        <h1 className="text-3xl md:text-4xl font-bold text-foreground">Track Your Order</h1>
+        <p className="text-muted-foreground mt-2">Enter your Order ID below to see its status and details.</p>
+      </div>
+
+      <Card className="shadow-lg">
+        <CardContent className="p-6">
+          <form onSubmit={handleTrackOrder} className="space-y-4">
+            <div>
+              <Label htmlFor="orderId" className="text-base">Order ID</Label>
+              <Input
+                id="orderId"
+                type="text"
+                value={orderIdInput}
+                onChange={(e) => {
+                  setOrderIdInput(e.target.value);
+                  setError(null); // Clear error when user types
+                  if (order !== undefined) setOrder(undefined); // Clear previous order details when input changes
+                }}
+                placeholder="Enter your Order ID (e.g., a UUID)"
+                className="mt-1 text-base"
+              />
+            </div>
+            <Button type="submit" className="w-full text-base py-3" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Tracking...
+                </>
+              ) : "Track Order"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {error && !isLoading && (
+        <Alert variant="destructive" className="shadow-md">
+          <AlertCircle className="h-5 w-5" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {order === null && !isLoading && !error && ( // Explicitly check if order is null (not found)
+        <Alert variant="default" className="shadow-md bg-card border-primary/20">
+          <Info className="h-5 w-5 text-primary" />
+          <AlertTitle className="text-primary">Order Not Found</AlertTitle>
+          <AlertDescription>
+            We couldn't find an order with the ID: <strong>{orderIdInput}</strong>. Please check the ID and try again.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {order && typeof order === 'object' && !isLoading && (
+        <Card className="shadow-xl overflow-hidden">
+          <CardHeader className="bg-muted/30 p-6">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+              <div>
+                <CardTitle className="text-2xl md:text-3xl text-primary">Order Details</CardTitle>
+                <CardDescription className="flex items-center gap-1.5 mt-1">
+                  <Hash size={14}/> ID: {order.id}
+                </CardDescription>
+              </div>
+              <div className="text-sm sm:text-right">
+                <p className="font-semibold text-lg">Status: <span className="text-primary">{order.status}</span></p>
+                <p className="text-muted-foreground flex items-center gap-1.5 justify-start sm:justify-end">
+                  <CalendarDays size={14}/> Ordered on: {format(new Date(order.orderDate), "PPP p")}
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6 space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle className="text-xl flex items-center gap-2"><UserCircle size={22}/> Customer Information</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm space-y-1">
+                  <p><strong>Name:</strong> {order.customerName}</p>
+                  <p><strong>Email:</strong> {order.customerEmail}</p>
+                </CardContent>
+              </Card>
+              <Card className="shadow-md">
+                <CardHeader>
+                  <CardTitle className="text-xl flex items-center gap-2"><MapPin size={22}/>Shipping Address</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm space-y-1">
+                  <p>{order.shippingAddress}</p>
+                  {order.shippingLatitude && order.shippingLongitude && (
+                     <p className="text-xs text-muted-foreground">
+                       Coords: {order.shippingLatitude.toFixed(4)}, {order.shippingLongitude.toFixed(4)}
+                     </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div>
+              <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><ShoppingBag size={22}/>Items Ordered</h3>
+              <div className="space-y-3 divide-y divide-border rounded-md border bg-card p-4 shadow-inner">
+                {order.items.length > 0 ? (
+                  order.items.map(item => <OrderItemCard key={item.id} item={item} />)
+                ) : (
+                  <p className="text-muted-foreground py-4 text-center">No items found for this order.</p>
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                {order.shippingMethod && <p><Truck size={16} className="inline mr-2 text-muted-foreground"/><strong>Shipping Method:</strong> {order.shippingMethod}</p>}
+                {order.paymentMethod && <p><CreditCard size={16} className="inline mr-2 text-muted-foreground"/><strong>Payment Method:</strong> {order.paymentMethod} (Simulated)</p>}
+                {order.trackingNumber && <p><PackageSearch size={16} className="inline mr-2 text-muted-foreground"/><strong>Tracking #:</strong> {order.trackingNumber}</p>}
+              </div>
+              <div className="sm:text-right">
+                <p className="text-lg font-semibold">Order Total: <span className="text-primary">${order.totalAmount.toFixed(2)}</span></p>
+              </div>
+            </div>
+          </CardContent>
+           <CardFooter className="bg-muted/20 p-4 text-center">
+             <p className="text-xs text-muted-foreground w-full">
+               If you have any questions about your order, please contact support with your Order ID.
+             </p>
+           </CardFooter>
+        </Card>
+      )}
+    </div>
+  );
+}

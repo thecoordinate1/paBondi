@@ -2,14 +2,14 @@
 "use client";
 
 import Link from 'next/link';
-import { ShoppingCart, Store, Package, Menu } from 'lucide-react';
+import { ShoppingCart, Store, Package, Menu, PackageSearch } from 'lucide-react'; // Added PackageSearch
 import Logo from './Logo';
 import { useCart } from '@/context/CartContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'; // SheetClose removed as it's handled by NavLink onClick
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import React, { useState, useEffect } from 'react';
 
@@ -17,8 +17,8 @@ interface NavLinkProps {
   href: string;
   children: React.ReactNode;
   icon: React.ReactNode;
-  onClick?: () => void; // To close the sheet
-  isSheetLink?: boolean; // To differentiate styling
+  onClick?: () => void;
+  isSheetLink?: boolean;
 }
 
 const NavLink = ({ href, children, icon, onClick, isSheetLink = false }: NavLinkProps) => {
@@ -32,7 +32,7 @@ const NavLink = ({ href, children, icon, onClick, isSheetLink = false }: NavLink
       onClick={onClick}
       className={cn(
         "text-sm font-medium",
-        isSheetLink ? "w-full justify-start py-3 text-base h-auto" : "h-10", // Adjusted height for sheet links
+        isSheetLink ? "w-full justify-start py-3 text-base h-auto" : "h-10",
         isActive
           ? (isSheetLink ? "bg-primary/10 text-primary font-semibold" : "text-primary")
           : "text-foreground/70 hover:text-foreground hover:bg-primary/5",
@@ -62,7 +62,7 @@ const CartButtonContent = ({ itemCount, hasMounted }: { itemCount: number; hasMo
 const Header = () => {
   const { getItemCount } = useCart();
   const itemCount = getItemCount();
-  const isMobile = useIsMobile();
+  const currentLayoutIsMobile = useIsMobile(); // Keep the hook call
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const [hasMounted, setHasMounted] = useState(false);
@@ -75,35 +75,40 @@ const Header = () => {
     if (mobileMenuOpen) {
       setMobileMenuOpen(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, mobileMenuOpen]); // Added mobileMenuOpen to dependency array
 
   const navLinksContent = (isSheet = false) => (
     <>
       <NavLink href="/stores" icon={<Store size={18} />} onClick={isSheet ? () => setMobileMenuOpen(false) : undefined} isSheetLink={isSheet}>Stores</NavLink>
       <NavLink href="/products" icon={<Package size={18} />} onClick={isSheet ? () => setMobileMenuOpen(false) : undefined} isSheetLink={isSheet}>Products</NavLink>
+      <NavLink href="/track-order" icon={<PackageSearch size={18} />} onClick={isSheet ? () => setMobileMenuOpen(false) : undefined} isSheetLink={isSheet}>Track Order</NavLink>
     </>
   );
 
   const renderNavigation = () => {
     if (!hasMounted) {
       // Render a minimal, consistent structure for SSR and initial client render
-      // This could be a placeholder or just the cart button for desktop, 
-      // and a placeholder for the mobile menu button.
-      // For simplicity, we'll render the cart button for desktop-like structure.
+      // This structure should be common to both mobile and desktop before hydration
       return (
         <nav className="flex items-center space-x-2 sm:space-x-4">
-          {/* Placeholder for nav links if needed, or nothing */}
+          {/* Desktop-like structure for cart button as a baseline */}
           <Link href="/cart" passHref>
             <Button variant="ghost" className="relative text-foreground/70 hover:text-foreground">
-              <CartButtonContent itemCount={itemCount} hasMounted={hasMounted} />
+              <CartButtonContent itemCount={0} hasMounted={false} /> {/* Default to 0 items, no badge before mount */}
             </Button>
           </Link>
+          {/* Placeholder for mobile menu trigger to ensure DOM consistency if needed */}
+          <div className="md:hidden">
+             <Button variant="ghost" size="icon" className="text-foreground/70 hover:text-foreground" aria-hidden="true" disabled>
+                <Menu size={24} />
+             </Button>
+          </div>
         </nav>
       );
     }
 
-    if (isMobile) {
+    // Post-hydration rendering based on actual mobile state
+    if (currentLayoutIsMobile) {
       return (
         <div className="flex items-center space-x-2">
           <Link href="/cart" passHref>
@@ -121,7 +126,6 @@ const Header = () => {
             <SheetContent side="right" className="w-[280px] p-0 flex flex-col">
               <SheetHeader className="p-4 border-b">
                  <SheetTitle className="text-left">
-                   {/* Use a span for the onClick to close, Link component is inside Logo */}
                    <span onClick={() => setMobileMenuOpen(false)} className="cursor-pointer">
                       <Logo />
                    </span>

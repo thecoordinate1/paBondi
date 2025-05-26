@@ -1,18 +1,16 @@
 
-import type { Store, Product, CreateOrderInput, CreateOrderItemInput } from '@/types';
+import type { Store, Product, CreateOrderInput, CreateOrderItemInput, AppOrder, AppOrderItem } from '@/types';
 import type { Product as SupabaseProduct, Store as SupabaseStore, ProductImage as SupabaseProductImage, Order as SupabaseOrder, OrderItem as SupabaseOrderItem } from '@/types/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-// Helper to map Supabase product to app product, including images and store name
 const mapSupabaseProductToAppProduct = async (
   supabase: SupabaseClient,
   supabaseProduct: SupabaseProduct,
-  allProductImages?: SupabaseProductImage[], // Optional pre-fetched images for performance
-  allStoresMap?: Map<string, { name: string }> // Optional pre-fetched store names
+  allProductImages?: SupabaseProductImage[],
+  allStoresMap?: Map<string, { name: string }>
 ): Promise<Product> => {
-  // Fetch images if not provided
   let productImagesData = allProductImages?.filter(img => img.product_id === supabaseProduct.id) || [];
-  if (!allProductImages) {
+  if (!allProductImages && supabaseProduct.id) {
     const { data, error } = await supabase
       .from('product_images')
       .select('image_url, order, product_id, id')
@@ -26,7 +24,6 @@ const mapSupabaseProductToAppProduct = async (
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
     .map(img => img.image_url);
 
-  // Fetch store name if not provided or in map
   let storeName = 'Unknown Store';
   if (supabaseProduct.store_id) {
     if (allStoresMap && allStoresMap.has(supabaseProduct.store_id)) {
@@ -36,9 +33,9 @@ const mapSupabaseProductToAppProduct = async (
         .from('stores')
         .select('name')
         .eq('id', supabaseProduct.store_id)
-        .eq('status', 'Active') // Ensure we only link to Active stores
+        .eq('status', 'Active')
         .single();
-      if (storeError && storeError.code !== 'PGRST116') { // PGRST116 is "No rows found"
+      if (storeError && storeError.code !== 'PGRST116') {
         console.error(`[mapSupabaseProductToAppProduct] Error fetching store name for product ${supabaseProduct.id} (Store ID: ${supabaseProduct.store_id}):`, storeError);
       }
       if (storeData) {
@@ -59,8 +56,8 @@ const mapSupabaseProductToAppProduct = async (
     storeName: storeName,
     category: supabaseProduct.category,
     stockCount: supabaseProduct.stock,
-    averageRating: undefined, // Placeholder, can be implemented later
-    reviewCount: undefined,   // Placeholder, can be implemented later
+    averageRating: undefined,
+    reviewCount: undefined,
   };
 };
 
@@ -73,7 +70,6 @@ const mapSupabaseStoreToAppStore = (supabaseStore: SupabaseStore): Store => {
   };
 };
 
-// Store Data Functions
 export const getAllStores = async (supabase: SupabaseClient): Promise<Store[]> => {
   console.log('[getAllStores] Fetching stores with status "Active"...');
   const { data, error } = await supabase
@@ -103,14 +99,14 @@ export const getStoreById = async (supabase: SupabaseClient, id: string): Promis
 
   if (error) {
     if (error.code === 'PGRST116') {
-      console.warn(`[getStoreById] No store found with ID: ${id} and status "Active". This could be due to the store not existing, not being "Active", or RLS policies blocking access.`);
+      console.warn(`[getStoreById] No store found with ID: ${id} and status "Active".`);
       return undefined;
     }
     console.error(`[getStoreById] Error fetching store ${id}:`, error);
     throw new Error(`Failed to fetch store ${id}: ${error.message}`);
   }
    if (!data) {
-     console.warn(`[getStoreById] Store data is null for ID: ${id} (and status "Active"), though no PGRST116 error was thrown. This usually indicates an RLS policy silently filtered the result.`);
+     console.warn(`[getStoreById] Store data is null for ID: ${id} (and status "Active").`);
     return undefined;
   }
   return mapSupabaseStoreToAppStore(data);
@@ -130,15 +126,13 @@ export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store
     throw error;
   }
    if (!data || data.length === 0) {
-    console.warn('[getFeaturedStores] Supabase query for "Active" featured stores was successful but returned no data. Check "stores" table data (status=\'Active\') and RLS policies for the "anon" role.');
+    console.warn('[getFeaturedStores] Supabase query for "Active" featured stores was successful but returned no data.');
   } else {
     console.log(`[getFeaturedStores] Fetched ${data.length} "Active" featured stores.`);
   }
   return data ? data.map(mapSupabaseStoreToAppStore) : [];
 };
 
-
-// Product Data Functions
 export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
   console.log('[getAllProducts] Attempting to fetch products with status "Active".');
   const { data: productsData, error: productsError } = await supabase
@@ -192,7 +186,7 @@ export const getProductById = async (supabase: SupabaseClient, id: string): Prom
     .single();
 
   if (productError) {
-    if (productError.code === 'PGRST116') return undefined; // Not found is not an error here
+    if (productError.code === 'PGRST116') return undefined; 
     console.error(`[getProductById] Error fetching product ${id}:`, productError);
     throw new Error(`Failed to fetch product ${id}: ${productError.message}`);
   }
@@ -226,7 +220,6 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
   const { data: storeData, error: storeError } = await supabase.from('stores').select('id, name').eq('id', storeId).eq('status', 'Active').single();
   if(storeError && storeError.code !== 'PGRST116') console.error(`[getProductsByStoreId] Error fetching store name for store ${storeId}:`, storeError);
   if(storeData) storesMap.set(storeData.id, { name: storeData.name });
-
 
   return Promise.all(
     productsData.map(p => mapSupabaseProductToAppProduct(supabase, p as SupabaseProduct, allProductImages, storesMap))
@@ -279,13 +272,12 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
   return mappedProducts;
 };
 
-// Order creation functions
 export const createOrder = async (supabase: SupabaseClient, orderInput: CreateOrderInput): Promise<SupabaseOrder> => {
-  console.log('[createOrder] Attempting to create order with input (including lat/lng if provided):', orderInput);
+  console.log('[createOrder] Attempting to create order with input:', orderInput);
   
   const { data, error } = await supabase
     .from('orders')
-    .insert([orderInput]) // Pass the full orderInput, including lat/lng
+    .insert([orderInput])
     .select()
     .single(); 
 
@@ -345,3 +337,70 @@ export const getProductStock = async (supabase: SupabaseClient, productId: strin
   return data?.stock ?? null;
 };
 
+export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: string): Promise<AppOrder | null> => {
+  console.log(`[getOrderDetailsById] Fetching order details for ID: ${orderId}`);
+  const { data: orderData, error: orderError } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('id', orderId)
+    .single();
+
+  if (orderError) {
+    if (orderError.code === 'PGRST116') { // "No rows found"
+      console.warn(`[getOrderDetailsById] No order found with ID: ${orderId}`);
+      return null;
+    }
+    console.error(`[getOrderDetailsById] Error fetching order ${orderId}:`, orderError);
+    throw new Error(`Failed to fetch order ${orderId}: ${orderError.message}`);
+  }
+
+  if (!orderData) {
+    console.warn(`[getOrderDetailsById] Order data is null for ID: ${orderId}, though no error was thrown.`);
+    return null;
+  }
+
+  console.log(`[getOrderDetailsById] Fetched order data:`, orderData);
+
+  const { data: itemsData, error: itemsError } = await supabase
+    .from('order_items')
+    .select('*')
+    .eq('order_id', orderId);
+
+  if (itemsError) {
+    console.error(`[getOrderDetailsById] Error fetching items for order ${orderId}:`, itemsError);
+    // Decide if you want to throw or return order without items
+    throw new Error(`Failed to fetch items for order ${orderId}: ${itemsError.message}`);
+  }
+
+  console.log(`[getOrderDetailsById] Fetched items data for order ${orderId}:`, itemsData);
+
+  const appOrderItems: AppOrderItem[] = itemsData ? itemsData.map((item: SupabaseOrderItem) => ({
+    id: item.id,
+    productId: item.product_id,
+    name: item.product_name_snapshot,
+    quantity: item.quantity,
+    pricePerUnit: item.price_per_unit_snapshot,
+    imageUrl: item.product_image_url_snapshot || 'https://placehold.co/100x100.png?text=No+Image',
+    totalPrice: item.quantity * item.price_per_unit_snapshot,
+  })) : [];
+
+  return {
+    id: orderData.id,
+    storeId: orderData.store_id,
+    customerName: orderData.customer_name,
+    customerEmail: orderData.customer_email,
+    orderDate: orderData.order_date,
+    totalAmount: orderData.total_amount,
+    status: orderData.status,
+    shippingAddress: orderData.shipping_address,
+    billingAddress: orderData.billing_address,
+    shippingMethod: orderData.shipping_method,
+    paymentMethod: orderData.payment_method,
+    trackingNumber: orderData.tracking_number,
+    shippingLatitude: orderData.shipping_latitude,
+    shippingLongitude: orderData.shipping_longitude,
+    createdAt: orderData.created_at,
+    updatedAt: orderData.updated_at,
+    items: appOrderItems,
+  };
+};
