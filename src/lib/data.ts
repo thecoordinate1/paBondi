@@ -17,7 +17,7 @@ const mapSupabaseProductToAppProduct = async (
       .eq('product_id', supabaseProduct.id)
       .order('order');
     if (error) console.error(`[mapSupabaseProductToAppProduct] Error fetching images for product ${supabaseProduct.id}:`, error);
-    productImagesData = data || [];
+    else productImagesData = data || [];
   }
 
   const productImages = productImagesData
@@ -29,13 +29,14 @@ const mapSupabaseProductToAppProduct = async (
     if (allStoresMap && allStoresMap.has(supabaseProduct.store_id)) {
       storeName = allStoresMap.get(supabaseProduct.store_id)!.name;
     } else {
+      // Fetch store name only if store_id exists and not found in map
       const { data: storeData, error: storeError } = await supabase
         .from('stores')
         .select('name')
         .eq('id', supabaseProduct.store_id)
-        .eq('status', 'Active')
+        .eq('status', 'Active') // Ensure we get an Active store's name
         .single();
-      if (storeError && storeError.code !== 'PGRST116') {
+      if (storeError && storeError.code !== 'PGRST116') { // PGRST116 is "No rows found", which is acceptable
         console.error(`[mapSupabaseProductToAppProduct] Error fetching store name for product ${supabaseProduct.id} (Store ID: ${supabaseProduct.store_id}):`, storeError);
       }
       if (storeData) {
@@ -56,8 +57,8 @@ const mapSupabaseProductToAppProduct = async (
     storeName: storeName,
     category: supabaseProduct.category,
     stockCount: supabaseProduct.stock,
-    averageRating: undefined,
-    reviewCount: undefined,
+    averageRating: undefined, // Placeholder, implement actual fetching if needed
+    reviewCount: undefined,  // Placeholder
   };
 };
 
@@ -98,14 +99,14 @@ export const getStoreById = async (supabase: SupabaseClient, id: string): Promis
     .single();
 
   if (error) {
-    if (error.code === 'PGRST116') {
+    if (error.code === 'PGRST116') { // "No rows found"
       console.warn(`[getStoreById] No store found with ID: ${id} and status "Active".`);
       return undefined;
     }
     console.error(`[getStoreById] Error fetching store ${id}:`, error);
     throw new Error(`Failed to fetch store ${id}: ${error.message}`);
   }
-   if (!data) {
+   if (!data) { // Should be caught by PGRST116 if no rows, but good to have
      console.warn(`[getStoreById] Store data is null for ID: ${id} (and status "Active").`);
     return undefined;
   }
@@ -154,6 +155,7 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
   }
   console.log(`[getAllProducts] Fetched ${productsData.length} products with status "Active" initially.`);
   
+  // Optimized image and store fetching
   const productIds = productsData.map(p => p.id);
   let allProductImages: SupabaseProductImage[] = [];
   if (productIds.length > 0) {
@@ -186,7 +188,7 @@ export const getProductById = async (supabase: SupabaseClient, id: string): Prom
     .single();
 
   if (productError) {
-    if (productError.code === 'PGRST116') return undefined; 
+    if (productError.code === 'PGRST116') return undefined; // Not found is not an error for a "get by ID"
     console.error(`[getProductById] Error fetching product ${id}:`, productError);
     throw new Error(`Failed to fetch product ${id}: ${productError.message}`);
   }
@@ -216,6 +218,7 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
     else allProductImages = images || [];
   }
   
+  // Fetch the specific store's name to pass to mapping function
   const storesMap = new Map<string, { name: string }>();
   const { data: storeData, error: storeError } = await supabase.from('stores').select('id, name').eq('id', storeId).eq('status', 'Active').single();
   if(storeError && storeError.code !== 'PGRST116') console.error(`[getProductsByStoreId] Error fetching store name for store ${storeId}:`, storeError);
@@ -230,7 +233,7 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
   console.log('[getFeaturedProducts] Fetching featured (most recent 4 active) products...');
   const { data: productsData, error: productsError } = await supabase
     .from('products')
-    .select('*') 
+    .select('*') // Simplified select
     .eq('status', 'Active')
     .order('created_at', { ascending: false })
     .limit(4);
@@ -277,7 +280,7 @@ export const createOrder = async (supabase: SupabaseClient, orderInput: CreateOr
   
   const { data, error } = await supabase
     .from('orders')
-    .insert([orderInput])
+    .insert([orderInput]) // orderInput now includes lat/lng
     .select()
     .single(); 
 
@@ -331,12 +334,13 @@ export const getProductStock = async (supabase: SupabaseClient, productId: strin
 
   if (error) {
     console.error(`[getProductStock] Error fetching stock for product ${productId}:`, error);
-    if (error.code === 'PGRST116') return null; 
+    if (error.code === 'PGRST116') return null; // Product not found
     throw new Error(`Failed to fetch stock for product ${productId}: ${error.message}`);
   }
   return data?.stock ?? null;
 };
 
+// Fetches a single order and its items by Order ID
 export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: string): Promise<AppOrder | null> => {
   console.log(`[getOrderDetailsById] Fetching order details for ID: ${orderId}`);
   const { data: orderData, error: orderError } = await supabase
@@ -351,10 +355,12 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
       return null;
     }
     console.error(`[getOrderDetailsById] Error fetching order ${orderId}:`, orderError);
+    // For a "get by ID", it's often better to throw if it's not a "not found" error.
     throw new Error(`Failed to fetch order ${orderId}: ${orderError.message}`);
   }
 
   if (!orderData) {
+    // This case should ideally be caught by PGRST116, but as a fallback:
     console.warn(`[getOrderDetailsById] Order data is null for ID: ${orderId}, though no error was thrown.`);
     return null;
   }
@@ -369,6 +375,8 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
   if (itemsError) {
     console.error(`[getOrderDetailsById] Error fetching items for order ${orderId}:`, itemsError);
     // Decide if you want to throw or return order without items
+    // For now, we'll return the order but items array might be empty or mapping might fail
+    // A more robust approach might be to throw here too, or ensure AppOrder allows items to be undefined.
     throw new Error(`Failed to fetch items for order ${orderId}: ${itemsError.message}`);
   }
 
@@ -404,3 +412,62 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
     items: appOrderItems,
   };
 };
+
+
+// New function to find orders by various search terms
+export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTerm: string): Promise<AppOrder | null> {
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  let orderIdToFetch: string | null = null;
+
+  if (uuidRegex.test(searchTerm)) {
+    console.log(`[findOrdersBySearchTerm] Search term is a UUID, using directly: ${searchTerm}`);
+    orderIdToFetch = searchTerm;
+  } else {
+    // Try searching by customer_email (exact, case-insensitive)
+    console.log(`[findOrdersBySearchTerm] Trying to fetch by email: ${searchTerm}`);
+    const { data: emailMatchOrder, error: emailError } = await supabase
+      .from('orders')
+      .select('id, order_date') // Only select id and order_date for deciding
+      .ilike('customer_email', searchTerm) // Case-insensitive match for email
+      .order('order_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (emailError && emailError.code !== 'PGRST116') {
+      console.error(`[findOrdersBySearchTerm] Error fetching order by email ${searchTerm}:`, emailError);
+      // Not throwing, will try name next or return null if this was the last attempt.
+    }
+    if (emailMatchOrder) {
+      console.log(`[findOrdersBySearchTerm] Found potential order by email, ID: ${emailMatchOrder.id}`);
+      orderIdToFetch = emailMatchOrder.id;
+    }
+
+    // If no email match, try searching by customer_name (exact, case-insensitive)
+    if (!orderIdToFetch) {
+      console.log(`[findOrdersBySearchTerm] No email match, trying to fetch by name: ${searchTerm}`);
+      const { data: nameMatchOrder, error: nameError } = await supabase
+        .from('orders')
+        .select('id, order_date') // Only select id and order_date
+        .ilike('customer_name', searchTerm) // Case-insensitive match for name
+        .order('order_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (nameError && nameError.code !== 'PGRST116') {
+        console.error(`[findOrdersBySearchTerm] Error fetching order by name ${searchTerm}:`, nameError);
+      }
+      if (nameMatchOrder) {
+        console.log(`[findOrdersBySearchTerm] Found potential order by name, ID: ${nameMatchOrder.id}`);
+        orderIdToFetch = nameMatchOrder.id;
+      }
+    }
+  }
+
+  if (orderIdToFetch) {
+    console.log(`[findOrdersBySearchTerm] Proceeding to fetch full details for Order ID: ${orderIdToFetch}`);
+    return getOrderDetailsById(supabase, orderIdToFetch);
+  }
+
+  console.log(`[findOrdersBySearchTerm] No order found matching term: ${searchTerm}`);
+  return null;
+}

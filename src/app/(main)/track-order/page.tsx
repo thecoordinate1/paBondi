@@ -15,15 +15,15 @@ import { PackageSearch, AlertCircle, Info, ShoppingBag, UserCircle, MapPin, Cale
 import { format } from 'date-fns';
 
 export default function TrackOrderPage() {
-  const [orderIdInput, setOrderIdInput] = useState('');
+  const [searchInput, setSearchInput] = useState(''); // Renamed from orderIdInput
   const [order, setOrder] = useState<AppOrder | null | undefined>(undefined); // undefined initially, null if not found
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleTrackOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!orderIdInput.trim()) {
-      setError("Please enter an Order ID.");
+    if (!searchInput.trim()) {
+      setError("Please enter an Order ID, Email, or Name."); // Updated message
       setOrder(undefined);
       return;
     }
@@ -31,11 +31,12 @@ export default function TrackOrderPage() {
     setError(null);
     setOrder(undefined);
 
-    const result = await fetchOrderAction(orderIdInput.trim());
+    const result = await fetchOrderAction(searchInput.trim());
     if (result.success) {
-      setOrder(result.order); // Can be null if not found, or an AppOrder object
+      setOrder(result.order); 
       if (!result.order) {
-        setError(`No order found with ID: ${orderIdInput.trim()}`);
+        // Error message is now set by the action if order is not found
+        setError(result.error || `No order found matching: ${searchInput.trim()}`);
       }
     } else {
       setError(result.error || "Failed to fetch order details.");
@@ -70,24 +71,24 @@ export default function TrackOrderPage() {
       <div className="text-center">
         <PackageSearch className="mx-auto h-16 w-16 text-primary mb-4" />
         <h1 className="text-3xl md:text-4xl font-bold text-foreground">Track Your Order</h1>
-        <p className="text-muted-foreground mt-2">Enter your Order ID below to see its status and details.</p>
+        <p className="text-muted-foreground mt-2">Enter your Order ID, Email, or Name below to see its status and details.</p>
       </div>
 
       <Card className="shadow-lg">
         <CardContent className="p-6">
           <form onSubmit={handleTrackOrder} className="space-y-4">
             <div>
-              <Label htmlFor="orderId" className="text-base">Order ID</Label>
+              <Label htmlFor="searchInput" className="text-base">Order ID, Email, or Name</Label> 
               <Input
-                id="orderId"
+                id="searchInput" // Changed ID
                 type="text"
-                value={orderIdInput}
+                value={searchInput}
                 onChange={(e) => {
-                  setOrderIdInput(e.target.value);
-                  setError(null); // Clear error when user types
-                  if (order !== undefined) setOrder(undefined); // Clear previous order details when input changes
+                  setSearchInput(e.target.value);
+                  setError(null); 
+                  if (order !== undefined) setOrder(undefined); 
                 }}
-                placeholder="Enter your Order ID (e.g., a UUID)"
+                placeholder="Enter Order ID, Email, or Full Name" 
                 className="mt-1 text-base"
               />
             </div>
@@ -111,12 +112,12 @@ export default function TrackOrderPage() {
         </Alert>
       )}
 
-      {order === null && !isLoading && !error && ( // Explicitly check if order is null (not found)
+      {order === null && !isLoading && !error && ( 
         <Alert variant="default" className="shadow-md bg-card border-primary/20">
           <Info className="h-5 w-5 text-primary" />
           <AlertTitle className="text-primary">Order Not Found</AlertTitle>
           <AlertDescription>
-            We couldn't find an order with the ID: <strong>{orderIdInput}</strong>. Please check the ID and try again.
+            We couldn't find an order matching your criteria: <strong>{searchInput}</strong>. Please check your input and try again.
           </AlertDescription>
         </Alert>
       )}
