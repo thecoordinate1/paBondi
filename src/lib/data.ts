@@ -1,16 +1,16 @@
 
 import type { Store, Product } from '@/types';
 import type { Product as SupabaseProduct, Store as SupabaseStore, ProductImage as SupabaseProductImage } from '@/types/supabase';
-import type { SupabaseClient, PostgrestError } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 const mapSupabaseProductToAppProduct = async (
-  supabase: SupabaseClient, 
+  supabase: SupabaseClient,
   supabaseProduct: SupabaseProduct,
-  allProductImages?: SupabaseProductImage[], 
-  allStoresMap?: Map<string, { name: string }> 
+  allProductImages?: SupabaseProductImage[],
+  allStoresMap?: Map<string, { name: string }>
 ): Promise<Product> => {
   // console.log(`[mapSupabaseProductToAppProduct] Mapping product ID: ${supabaseProduct.id}, Name: ${supabaseProduct.name}`);
-  
+
   let productImagesData = allProductImages;
   if (!productImagesData) {
     // console.log(`[mapSupabaseProductToAppProduct] Product images not pre-fetched for ${supabaseProduct.id}. Fetching now.`);
@@ -29,7 +29,7 @@ const mapSupabaseProductToAppProduct = async (
     .filter(img => img.product_id === supabaseProduct.id)
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
     .map(img => img.image_url);
-  
+
   // console.log(`[mapSupabaseProductToAppProduct] Product ${supabaseProduct.id} has ${productImages.length} images after filtering and sorting.`);
 
   let storeName = 'Unknown Store';
@@ -42,20 +42,20 @@ const mapSupabaseProductToAppProduct = async (
       .from('stores')
       .select('name')
       .eq('id', supabaseProduct.store_id)
+      .eq('status', 'Active') // Ensure we only link to Active stores
       .single();
-    if (storeError && storeError.code !== 'PGRST116') { // PGRST116 is "No rows found", not necessarily an error for a single()
+    if (storeError && storeError.code !== 'PGRST116') { // PGRST116 is "No rows found"
       console.error(`[mapSupabaseProductToAppProduct] Error fetching store name for product ${supabaseProduct.id} (Store ID: ${supabaseProduct.store_id}):`, storeError);
     }
     if (storeData) {
       storeName = storeData.name;
       // console.log(`[mapSupabaseProductToAppProduct] Fetched store name for product ${supabaseProduct.id}: ${storeName}`);
     } else {
-      // console.warn(`[mapSupabaseProductToAppProduct] Could not fetch store name for product ${supabaseProduct.id} (Store ID: ${supabaseProduct.store_id}).`);
+      // console.warn(`[mapSupabaseProductToAppProduct] Could not fetch Active store name for product ${supabaseProduct.id} (Store ID: ${supabaseProduct.store_id}).`);
     }
   } else {
     // console.log(`[mapSupabaseProductToAppProduct] Product ${supabaseProduct.id} has no store_id.`);
   }
-
 
   return {
     id: supabaseProduct.id,
@@ -66,7 +66,7 @@ const mapSupabaseProductToAppProduct = async (
     storeId: supabaseProduct.store_id,
     storeName: storeName,
     category: supabaseProduct.category,
-    stockCount: supabaseProduct.stock, 
+    stockCount: supabaseProduct.stock,
     averageRating: undefined, // Placeholder - to be implemented if reviews feature is added
     reviewCount: undefined,   // Placeholder - to be implemented if reviews feature is added
   };
@@ -87,13 +87,17 @@ export const getAllStores = async (supabase: SupabaseClient): Promise<Store[]> =
   const { data, error } = await supabase
     .from('stores')
     .select('*')
-    .eq('status', 'Active'); // Assuming 'Active' status for stores as well
+    .eq('status', 'Active');
 
   if (error) {
     console.error('[getAllStores] Error fetching stores:', error);
     throw new Error(`Failed to fetch stores: ${error.message}`);
   }
-  console.log(`[getAllStores] Fetched ${data ? data.length : 0} active stores.`);
+  if (!data || data.length === 0) {
+    console.warn('[getAllStores] Supabase query for active stores was successful but returned no data. Check if stores exist with status "Active" and verify RLS policies for the "stores" table allow read access for the anon role.');
+  } else {
+    console.log(`[getAllStores] Fetched ${data.length} active stores.`);
+  }
   return data ? data.map(mapSupabaseStoreToAppStore) : [];
 };
 
@@ -103,19 +107,23 @@ export const getStoreById = async (supabase: SupabaseClient, id: string): Promis
     .from('stores')
     .select('*')
     .eq('id', id)
-    .eq('status', 'Active') // Assuming 'Active' status for stores
+    .eq('status', 'Active')
     .single();
 
   if (error) {
-    if (error.code !== 'PGRST116') { 
-      console.error(`[getStoreById] Error fetching store ${id}:`, error);
-      throw new Error(`Failed to fetch store ${id}: ${error.message}`);
+    if (error.code === 'PGRST116') {
+      console.warn(`[getStoreById] No store found with ID: ${id} and status "Active". This could be due to the store not existing, not being "Active", or RLS policies blocking access.`);
+      return undefined;
     }
-    console.log(`[getStoreById] No store found with ID: ${id} or it's not active.`);
+    console.error(`[getStoreById] Error fetching store ${id}:`, error);
+    throw new Error(`Failed to fetch store ${id}: ${error.message}`);
+  }
+  if (!data) {
+     console.warn(`[getStoreById] Store data is null for ID: ${id} (and status "Active"), though no PGRST116 error was thrown. This usually indicates an RLS policy silently filtered the result.`);
     return undefined;
   }
-  console.log(`[getStoreById] Successfully fetched store: ${data ? data.name : 'N/A'}`);
-  return data ? mapSupabaseStoreToAppStore(data) : undefined;
+  console.log(`[getStoreById] Successfully fetched store: ${data.name}`);
+  return mapSupabaseStoreToAppStore(data);
 };
 
 export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
@@ -123,7 +131,11 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
   const { data: productsData, error: productsError } = await supabase
     .from('products')
     .select('*')
-    .eq('status', 'Active'); 
+    .eq('status', 'Active');
+
+  // console.log('[getAllProducts] RAW Supabase Response for products:');
+  // console.log('[getAllProducts] productsData:', JSON.stringify(productsData, null, 2));
+  // console.log('[getAllProducts] productsError:', JSON.stringify(productsError, null, 2));
 
   if (productsError) {
     console.error('[getAllProducts] Supabase error object while fetching products:', {
@@ -134,20 +146,21 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
     });
     throw new Error(`Supabase error fetching products: ${productsError.message}. Code: ${productsError.code}. Details: ${productsError.details}. Hint: ${productsError.hint}.`);
   }
-  
+
   if (!productsData) {
-    console.warn('[getAllProducts] productsData is null after fetching, and no error was thrown by Supabase. This is unexpected.');
+    console.warn('[getAllProducts] productsData is null after fetching, and no error was thrown by Supabase. This is unexpected but might happen with certain RLS configurations.');
     return [];
   }
 
-  console.log(`[getAllProducts] Fetched ${productsData.length} products with status "Active" initially.`);
   if (productsData.length === 0) {
-    console.warn('[getAllProducts] No products found with status "Active". Check your database table and RLS policies.');
+    console.warn('[getAllProducts] No products found with status "Active". Check your database table "products", ensure items have status "Active", and verify RLS policies allow read access for the anon role.');
     return [];
   }
+  console.log(`[getAllProducts] Fetched ${productsData.length} products with status "Active" initially.`);
+
 
   const productIds = productsData.map(p => p.id);
-  
+
   let imagesData: SupabaseProductImage[] = [];
   if (productIds.length > 0) {
     const { data: fetchedImagesData, error: imagesError } = await supabase
@@ -155,32 +168,35 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
       .select('*')
       .in('product_id', productIds);
     if (imagesError) {
-        console.error('[getAllProducts] Error fetching product images:', imagesError);
+      console.error('[getAllProducts] Error fetching product images:', imagesError);
     } else {
       imagesData = fetchedImagesData || [];
+      // console.log(`[getAllProducts] Fetched ${imagesData.length} images for ${productIds.length} products.`);
     }
   }
-  
+
   const storeIds = [...new Set(productsData.map(p => p.store_id).filter(id => !!id))];
   const storesMap = new Map<string, { name: string }>();
   if (storeIds.length > 0) {
     const { data: storesData, error: storesError } = await supabase
       .from('stores')
       .select('id, name')
-      .in('id', storeIds as string[]); 
+      .in('id', storeIds as string[])
+      .eq('status', 'Active'); // Ensure we only map to Active stores
 
     if (storesError) {
-        console.error('[getAllProducts] Error fetching store names for products:', storesError);
+      console.error('[getAllProducts] Error fetching store names for products:', storesError);
     } else if (storesData) {
       storesData.forEach(s => storesMap.set(s.id, { name: s.name }));
+      // console.log(`[getAllProducts] Fetched ${storesMap.size} Active store names for products.`);
     }
   }
-  
+
   try {
     const mappedProducts = await Promise.all(
       productsData.map(p => mapSupabaseProductToAppProduct(supabase, p, imagesData, storesMap))
     );
-    console.log(`[getAllProducts] Successfully mapped ${mappedProducts.length} products.`);
+    // console.log(`[getAllProducts] Successfully mapped ${mappedProducts.length} products.`);
 
     if (productsData.length > 0 && mappedProducts.length === 0) {
       console.error('[getAllProducts] CRITICAL: Initial products were fetched, but mapping resulted in zero products. Check mapping logic and individual item errors in mapSupabaseProductToAppProduct.');
@@ -198,19 +214,19 @@ export const getProductById = async (supabase: SupabaseClient, id: string): Prom
     .from('products')
     .select('*')
     .eq('id', id)
-    .eq('status', 'Active') 
+    .eq('status', 'Active')
     .single();
 
   if (productError) {
-     if (productError.code !== 'PGRST116') { 
-        console.error(`[getProductById] Error fetching product ${id}:`, productError);
-        throw new Error(`Failed to fetch product ${id}: ${productError.message}`);
-     }
-    console.log(`[getProductById] No product found with ID: ${id} (or it's not Active).`);
-    return undefined;
+    if (productError.code === 'PGRST116') {
+      console.warn(`[getProductById] No product found with ID: ${id} and status "Active". This could be due to the product not existing, not being "Active", or RLS policies blocking access.`);
+      return undefined;
+    }
+    console.error(`[getProductById] Error fetching product ${id}:`, productError);
+    throw new Error(`Failed to fetch product ${id}: ${productError.message}`);
   }
   if (!productData) {
-    console.log(`[getProductById] Product data is null for ID: ${id}, though no error was thrown.`);
+     console.warn(`[getProductById] Product data is null for ID: ${id} (and status "Active"), though no PGRST116 error was thrown. Check RLS policies.`);
     return undefined;
   }
   console.log(`[getProductById] Successfully fetched product: ${productData.name}`);
@@ -237,9 +253,10 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
     console.log(`[getProductsByStoreId] No Active products found for store ID: ${storeId}.`);
     return [];
   }
-  console.log(`[getProductsByStoreId] Fetched ${productsData.length} products for store ID: ${storeId}.`);
+  // console.log(`[getProductsByStoreId] Fetched ${productsData.length} Active products for store ID: ${storeId}.`);
 
-  const {data: storeData, error: storeError} = await supabase.from('stores').select('id, name').eq('id', storeId).single();
+  // Fetch the store name for these products
+  const {data: storeData, error: storeError} = await supabase.from('stores').select('id, name').eq('id', storeId).eq('status', 'Active').single();
   const storesMap = new Map<string, { name: string }>();
 
   if(storeError && storeError.code !== 'PGRST116') {
@@ -248,9 +265,9 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
   if(storeData) {
     storesMap.set(storeData.id, {name: storeData.name});
   } else {
-     console.warn(`[getProductsByStoreId] Could not fetch store name for store ID: ${storeId}`);
+     console.warn(`[getProductsByStoreId] Could not fetch Active store name for store ID: ${storeId}`);
   }
-  
+
   return Promise.all(
     productsData.map(p => mapSupabaseProductToAppProduct(supabase, p, undefined, storesMap))
   );
@@ -261,7 +278,7 @@ export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store
   const { data, error } = await supabase
     .from('stores')
     .select('*')
-    .eq('status', 'Active') // Assuming 'Active' status for stores
+    .eq('status', 'Active')
     .order('created_at', { ascending: false })
     .limit(3);
 
@@ -269,7 +286,11 @@ export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store
     console.error('[getFeaturedStores] Error fetching featured stores:', error);
     throw new Error(`Failed to fetch featured stores: ${error.message}`);
   }
-  console.log(`[getFeaturedStores] Fetched ${data ? data.length : 0} featured stores.`);
+  if (!data || data.length === 0) {
+    console.warn('[getFeaturedStores] Supabase query for featured active stores was successful but returned no data. Check if stores exist with status "Active" and verify RLS policies.');
+  } else {
+    console.log(`[getFeaturedStores] Fetched ${data.length} featured active stores.`);
+  }
   return data ? data.map(mapSupabaseStoreToAppStore) : [];
 };
 
@@ -278,10 +299,10 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
   const { data: productsData, error: productsError } = await supabase
     .from('products')
     .select('*')
-    .eq('status', 'Active') 
+    .eq('status', 'Active')
     .order('created_at', { ascending: false })
     .limit(4);
-  
+
   if (productsError) {
     console.error('[getFeaturedProducts] Supabase error object while fetching featured products:', {
       message: productsError.message,
@@ -299,8 +320,8 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
     console.log('[getFeaturedProducts] No Active products found to feature.');
     return [];
   }
-  console.log(`[getFeaturedProducts] Fetched ${productsData.length} products to feature.`);
-  
+  // console.log(`[getFeaturedProducts] Fetched ${productsData.length} products to feature.`);
+
   const productIds = productsData.map(p => p.id);
   let imagesData: SupabaseProductImage[] = [];
   if (productIds.length > 0) {
@@ -312,7 +333,7 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
   const storeIds = [...new Set(productsData.map(p => p.store_id).filter(Boolean))];
   const storesMap = new Map<string, { name: string }>();
   if (storeIds.length > 0) {
-    const { data: fetchedStores, error: strError } = await supabase.from('stores').select('id, name').in('id', storeIds as string[]);
+    const { data: fetchedStores, error: strError } = await supabase.from('stores').select('id, name').in('id', storeIds as string[]).eq('status', 'Active');
     if (strError) console.error('[getFeaturedProducts] Error fetching store names for featured products:', strError);
     else if (fetchedStores) fetchedStores.forEach(s => storesMap.set(s.id, { name: s.name }));
   }
@@ -322,3 +343,4 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
   );
 };
 
+    
