@@ -83,20 +83,24 @@ const mapSupabaseStoreToAppStore = (supabaseStore: SupabaseStore): Store => {
 };
 
 export const getAllStores = async (supabase: SupabaseClient): Promise<Store[]> => {
-  console.log('[getAllStores] Fetching active stores...');
+  console.log('[getAllStores] DIAGNOSTIC: Fetching ALL stores (status filter TEMPORARILY REMOVED)...');
   const { data, error } = await supabase
     .from('stores')
-    .select('*')
-    .eq('status', 'Active');
+    .select('*');
+    // .eq('status', 'Active'); // DIAGNOSTIC: Temporarily removed status filter
+
+  console.log('[getAllStores] DIAGNOSTIC: Raw Supabase response for ALL stores:');
+  console.log('[getAllStores] DIAGNOSTIC: data:', JSON.stringify(data, null, 2));
+  console.log('[getAllStores] DIAGNOSTIC: error:', JSON.stringify(error, null, 2));
 
   if (error) {
-    console.error('[getAllStores] Error fetching stores:', error);
-    throw new Error(`Failed to fetch stores: ${error.message}`);
+    console.error('[getAllStores] Error fetching stores (even without status filter):', error);
+    return []; // Return empty on error during diagnostics
   }
   if (!data || data.length === 0) {
-    console.warn('[getAllStores] Supabase query for active stores was successful but returned no data. Check if stores exist with status "Active" and verify RLS policies for the "stores" table allow read access for the anon role.');
+    console.warn('[getAllStores] DIAGNOSTIC: Supabase query for ALL stores was successful but returned no data. This means the "stores" table is empty OR RLS policies are blocking ALL access for the anon role.');
   } else {
-    console.log(`[getAllStores] Fetched ${data.length} active stores.`);
+    console.log(`[getAllStores] DIAGNOSTIC: Fetched ${data.length} stores (status filter was off).`);
   }
   return data ? data.map(mapSupabaseStoreToAppStore) : [];
 };
@@ -107,7 +111,7 @@ export const getStoreById = async (supabase: SupabaseClient, id: string): Promis
     .from('stores')
     .select('*')
     .eq('id', id)
-    .eq('status', 'Active')
+    .eq('status', 'Active') // Keep status filter for direct ID lookup
     .single();
 
   if (error) {
@@ -131,7 +135,7 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
   const { data: productsData, error: productsError } = await supabase
     .from('products')
     .select('*')
-    .eq('status', 'Active');
+    .eq('status', 'Active'); // Ensure we filter for 'Active' status
 
   // console.log('[getAllProducts] RAW Supabase Response for products:');
   // console.log('[getAllProducts] productsData:', JSON.stringify(productsData, null, 2));
@@ -214,7 +218,7 @@ export const getProductById = async (supabase: SupabaseClient, id: string): Prom
     .from('products')
     .select('*')
     .eq('id', id)
-    .eq('status', 'Active')
+    .eq('status', 'Active') // Ensure we filter for 'Active' status
     .single();
 
   if (productError) {
@@ -239,7 +243,7 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
     .from('products')
     .select('*')
     .eq('store_id', storeId)
-    .eq('status', 'Active');
+    .eq('status', 'Active'); // Ensure we filter for 'Active' status
 
   if (productsError) {
     console.error(`[getProductsByStoreId] Error fetching products for store ${storeId}:`, productsError);
@@ -274,22 +278,26 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
 };
 
 export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store[]> => {
-  console.log('[getFeaturedStores] Fetching featured (most recent 3 active) stores...');
+  console.log('[getFeaturedStores] DIAGNOSTIC: Fetching ALL featured stores (status filter TEMPORARILY REMOVED)...');
   const { data, error } = await supabase
     .from('stores')
     .select('*')
-    .eq('status', 'Active')
+    // .eq('status', 'Active') // DIAGNOSTIC: Temporarily removed status filter
     .order('created_at', { ascending: false })
     .limit(3);
 
+  console.log('[getFeaturedStores] DIAGNOSTIC: Raw Supabase response for ALL featured stores:');
+  console.log('[getFeaturedStores] DIAGNOSTIC: data:', JSON.stringify(data, null, 2));
+  console.log('[getFeaturedStores] DIAGNOSTIC: error:', JSON.stringify(error, null, 2));
+
   if (error) {
-    console.error('[getFeaturedStores] Error fetching featured stores:', error);
-    throw new Error(`Failed to fetch featured stores: ${error.message}`);
+    console.error('[getFeaturedStores] Error fetching featured stores (even without status filter):', error);
+    return []; // Return empty on error during diagnostics
   }
   if (!data || data.length === 0) {
-    console.warn('[getFeaturedStores] Supabase query for featured active stores was successful but returned no data. Check if stores exist with status "Active" and verify RLS policies.');
+    console.warn('[getFeaturedStores] DIAGNOSTIC: Supabase query for ALL featured stores was successful but returned no data. This means the "stores" table is empty, or no stores meet other criteria (like date for ordering), OR RLS policies are blocking ALL access for the anon role.');
   } else {
-    console.log(`[getFeaturedStores] Fetched ${data.length} featured active stores.`);
+    console.log(`[getFeaturedStores] DIAGNOSTIC: Fetched ${data.length} featured stores (status filter was off).`);
   }
   return data ? data.map(mapSupabaseStoreToAppStore) : [];
 };
@@ -299,7 +307,7 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
   const { data: productsData, error: productsError } = await supabase
     .from('products')
     .select('*')
-    .eq('status', 'Active')
+    .eq('status', 'Active') // Ensure we filter for 'Active' status
     .order('created_at', { ascending: false })
     .limit(4);
 
@@ -342,5 +350,3 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
     productsData.map(p => mapSupabaseProductToAppProduct(supabase, p, imagesData, storesMap))
   );
 };
-
-    
