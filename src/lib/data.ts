@@ -83,24 +83,20 @@ const mapSupabaseStoreToAppStore = (supabaseStore: SupabaseStore): Store => {
 };
 
 export const getAllStores = async (supabase: SupabaseClient): Promise<Store[]> => {
-  console.log('[getAllStores] DIAGNOSTIC: Fetching ALL stores (status filter TEMPORARILY REMOVED)...');
+  console.log('[getAllStores] Fetching stores with status "Active"...');
   const { data, error } = await supabase
     .from('stores')
-    .select('*');
-    // .eq('status', 'Active'); // DIAGNOSTIC: Temporarily removed status filter
-
-  console.log('[getAllStores] DIAGNOSTIC: Raw Supabase response for ALL stores:');
-  console.log('[getAllStores] DIAGNOSTIC: data:', JSON.stringify(data, null, 2));
-  console.log('[getAllStores] DIAGNOSTIC: error:', JSON.stringify(error, null, 2));
+    .select('*')
+    .eq('status', 'Active'); // Restored status filter
 
   if (error) {
-    console.error('[getAllStores] Error fetching stores (even without status filter):', error);
-    return []; // Return empty on error during diagnostics
+    console.error('[getAllStores] Error fetching stores:', error);
+    throw error; // Re-throw the error to be caught by the caller
   }
   if (!data || data.length === 0) {
-    console.warn('[getAllStores] DIAGNOSTIC: Supabase query for ALL stores was successful but returned no data. This means the "stores" table is empty OR RLS policies are blocking ALL access for the anon role.');
+    console.warn('[getAllStores] Supabase query for "Active" stores was successful but returned no data. Check "stores" table data and RLS policies for the "anon" role.');
   } else {
-    console.log(`[getAllStores] DIAGNOSTIC: Fetched ${data.length} stores (status filter was off).`);
+    console.log(`[getAllStores] Fetched ${data.length} "Active" stores.`);
   }
   return data ? data.map(mapSupabaseStoreToAppStore) : [];
 };
@@ -136,10 +132,6 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
     .from('products')
     .select('*')
     .eq('status', 'Active'); // Ensure we filter for 'Active' status
-
-  // console.log('[getAllProducts] RAW Supabase Response for products:');
-  // console.log('[getAllProducts] productsData:', JSON.stringify(productsData, null, 2));
-  // console.log('[getAllProducts] productsError:', JSON.stringify(productsError, null, 2));
 
   if (productsError) {
     console.error('[getAllProducts] Supabase error object while fetching products:', {
@@ -278,26 +270,22 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
 };
 
 export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store[]> => {
-  console.log('[getFeaturedStores] DIAGNOSTIC: Fetching ALL featured stores (status filter TEMPORARILY REMOVED)...');
+  console.log('[getFeaturedStores] Fetching featured stores with status "Active"...');
   const { data, error } = await supabase
     .from('stores')
     .select('*')
-    // .eq('status', 'Active') // DIAGNOSTIC: Temporarily removed status filter
+    .eq('status', 'Active') // Restored status filter
     .order('created_at', { ascending: false })
     .limit(3);
 
-  console.log('[getFeaturedStores] DIAGNOSTIC: Raw Supabase response for ALL featured stores:');
-  console.log('[getFeaturedStores] DIAGNOSTIC: data:', JSON.stringify(data, null, 2));
-  console.log('[getFeaturedStores] DIAGNOSTIC: error:', JSON.stringify(error, null, 2));
-
   if (error) {
-    console.error('[getFeaturedStores] Error fetching featured stores (even without status filter):', error);
-    return []; // Return empty on error during diagnostics
+    console.error('[getFeaturedStores] Error fetching featured stores:', error);
+    throw error;
   }
   if (!data || data.length === 0) {
-    console.warn('[getFeaturedStores] DIAGNOSTIC: Supabase query for ALL featured stores was successful but returned no data. This means the "stores" table is empty, or no stores meet other criteria (like date for ordering), OR RLS policies are blocking ALL access for the anon role.');
+    console.warn('[getFeaturedStores] Supabase query for "Active" featured stores was successful but returned no data. Check "stores" table data and RLS policies for the "anon" role.');
   } else {
-    console.log(`[getFeaturedStores] DIAGNOSTIC: Fetched ${data.length} featured stores (status filter was off).`);
+    console.log(`[getFeaturedStores] Fetched ${data.length} "Active" featured stores.`);
   }
   return data ? data.map(mapSupabaseStoreToAppStore) : [];
 };
