@@ -95,7 +95,7 @@ export async function placeOrderAction(
     // If all steps are successful
     return { success: true, orderId: orderId, message: 'Order placed successfully!' };
 
-  } catch (error)
+  } catch (error) {
     console.error('Error placing order:', error);
     return { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred while placing your order.' };
   }
