@@ -49,8 +49,7 @@ export interface CreateOrderInput {
   billing_address: string;
   shipping_latitude?: number | null;
   shipping_longitude?: number | null;
-  // Optional fields from schema
-  customer_id?: string | null;
+  customer_id?: string | null; // FK to customers table
   shipping_method?: string | null;
   payment_method?: string | null;
   tracking_number?: string | null;
@@ -58,7 +57,7 @@ export interface CreateOrderInput {
 
 export interface CreateOrderItemInput {
   order_id: string;
-  product_id: string | null; // Can be null if product deleted but snapshot exists
+  product_id: string | null;
   product_name_snapshot: string;
   quantity: number;
   price_per_unit_snapshot: number;
@@ -80,7 +79,6 @@ export interface AppOrderItem {
 export interface AppOrder {
   id: string;
   storeId: string;
-  // customerId?: string | null; // Add if needed later
   customerName: string;
   customerEmail: string;
   orderDate: string; // ISO string
@@ -96,4 +94,42 @@ export interface AppOrder {
   createdAt: string;
   updatedAt: string;
   items: AppOrderItem[];
+  customerId?: string | null;
+}
+
+// Customer related types for data operations
+export interface CreateCustomerInput {
+  name: string;
+  email: string;
+  phone?: string | null;
+  avatar_url?: string | null;
+  status: string; // e.g., "active"
+  street_address?: string | null;
+  city?: string | null;
+  state_province?: string | null;
+  zip_postal_code?: string | null;
+  country?: string | null;
+  joined_date: string; // ISO string
+  last_order_date: string; // ISO string
+  total_spent: number;
+  total_orders: number;
+  tags?: string[] | null;
+}
+
+export interface UpdateCustomerInput {
+  name?: string;
+  email?: string;
+  phone?: string | null;
+  avatar_url?: string | null;
+  status?: string;
+  street_address?: string | null;
+  city?: string | null;
+  state_province?: string | null;
+  zip_postal_code?: string | null;
+  country?: string | null;
+  last_order_date?: string; // ISO string
+  total_spent?: number;
+  total_orders?: number;
+  tags?: string[] | null;
+  // updated_at will be handled by trigger
 }

@@ -1,6 +1,6 @@
 
-import type { Store, Product, CreateOrderInput, CreateOrderItemInput, AppOrder, AppOrderItem } from '@/types';
-import type { Product as SupabaseProduct, Store as SupabaseStore, ProductImage as SupabaseProductImage, Order as SupabaseOrder, OrderItem as SupabaseOrderItem } from '@/types/supabase';
+import type { Store, Product, CreateOrderInput, CreateOrderItemInput, AppOrder, AppOrderItem, CreateCustomerInput, UpdateCustomerInput } from '@/types';
+import type { Product as SupabaseProduct, Store as SupabaseStore, ProductImage as SupabaseProductImage, Order as SupabaseOrder, OrderItem as SupabaseOrderItem, Customer as SupabaseCustomer } from '@/types/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const mapSupabaseProductToAppProduct = async (
@@ -29,14 +29,13 @@ const mapSupabaseProductToAppProduct = async (
     if (allStoresMap && allStoresMap.has(supabaseProduct.store_id)) {
       storeName = allStoresMap.get(supabaseProduct.store_id)!.name;
     } else {
-      // Fetch store name only if store_id exists and not found in map
       const { data: storeData, error: storeError } = await supabase
         .from('stores')
         .select('name')
         .eq('id', supabaseProduct.store_id)
-        .eq('status', 'Active') // Ensure we get an Active store's name
+        .eq('status', 'Active') 
         .single();
-      if (storeError && storeError.code !== 'PGRST116') { // PGRST116 is "No rows found", which is acceptable
+      if (storeError && storeError.code !== 'PGRST116') { 
         console.error(`[mapSupabaseProductToAppProduct] Error fetching store name for product ${supabaseProduct.id} (Store ID: ${supabaseProduct.store_id}):`, storeError);
       }
       if (storeData) {
@@ -57,8 +56,8 @@ const mapSupabaseProductToAppProduct = async (
     storeName: storeName,
     category: supabaseProduct.category,
     stockCount: supabaseProduct.stock,
-    averageRating: undefined, // Placeholder, implement actual fetching if needed
-    reviewCount: undefined,  // Placeholder
+    averageRating: undefined, 
+    reviewCount: undefined,  
   };
 };
 
@@ -99,14 +98,14 @@ export const getStoreById = async (supabase: SupabaseClient, id: string): Promis
     .single();
 
   if (error) {
-    if (error.code === 'PGRST116') { // "No rows found"
+    if (error.code === 'PGRST116') { 
       console.warn(`[getStoreById] No store found with ID: ${id} and status "Active".`);
       return undefined;
     }
     console.error(`[getStoreById] Error fetching store ${id}:`, error);
     throw new Error(`Failed to fetch store ${id}: ${error.message}`);
   }
-   if (!data) { // Should be caught by PGRST116 if no rows, but good to have
+   if (!data) { 
      console.warn(`[getStoreById] Store data is null for ID: ${id} (and status "Active").`);
     return undefined;
   }
@@ -155,7 +154,6 @@ export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[
   }
   console.log(`[getAllProducts] Fetched ${productsData.length} products with status "Active" initially.`);
   
-  // Optimized image and store fetching
   const productIds = productsData.map(p => p.id);
   let allProductImages: SupabaseProductImage[] = [];
   if (productIds.length > 0) {
@@ -188,7 +186,7 @@ export const getProductById = async (supabase: SupabaseClient, id: string): Prom
     .single();
 
   if (productError) {
-    if (productError.code === 'PGRST116') return undefined; // Not found is not an error for a "get by ID"
+    if (productError.code === 'PGRST116') return undefined; 
     console.error(`[getProductById] Error fetching product ${id}:`, productError);
     throw new Error(`Failed to fetch product ${id}: ${productError.message}`);
   }
@@ -218,7 +216,6 @@ export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: st
     else allProductImages = images || [];
   }
   
-  // Fetch the specific store's name to pass to mapping function
   const storesMap = new Map<string, { name: string }>();
   const { data: storeData, error: storeError } = await supabase.from('stores').select('id, name').eq('id', storeId).eq('status', 'Active').single();
   if(storeError && storeError.code !== 'PGRST116') console.error(`[getProductsByStoreId] Error fetching store name for store ${storeId}:`, storeError);
@@ -233,7 +230,7 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
   console.log('[getFeaturedProducts] Fetching featured (most recent 4 active) products...');
   const { data: productsData, error: productsError } = await supabase
     .from('products')
-    .select('*') // Simplified select
+    .select('*') 
     .eq('status', 'Active')
     .order('created_at', { ascending: false })
     .limit(4);
@@ -275,12 +272,76 @@ export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Pro
   return mappedProducts;
 };
 
+// Customer Data Functions
+export const findCustomerByEmail = async (supabase: SupabaseClient, email: string): Promise<SupabaseCustomer | null> => {
+  console.log(`[findCustomerByEmail] Searching for customer with email: ${email}`);
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('email', email)
+    .maybeSingle(); // Use maybeSingle to return null if not found, instead of erroring
+
+  if (error && error.code !== 'PGRST116') { // PGRST116 means "No rows found", which is fine
+    console.error(`[findCustomerByEmail] Error finding customer by email ${email}:`, error);
+    throw new Error(`Failed to find customer by email: ${error.message}`);
+  }
+  if (data) {
+    console.log(`[findCustomerByEmail] Customer found with email ${email}, ID: ${data.id}`);
+  } else {
+    console.log(`[findCustomerByEmail] No customer found with email ${email}.`);
+  }
+  return data;
+};
+
+export const createCustomer = async (supabase: SupabaseClient, customerData: CreateCustomerInput): Promise<SupabaseCustomer> => {
+  console.log('[createCustomer] Attempting to create new customer:', customerData.email);
+  const { data, error } = await supabase
+    .from('customers')
+    .insert([customerData])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('[createCustomer] Error creating customer:', error);
+    throw new Error(`Failed to create customer: ${error.message}`);
+  }
+  if (!data) {
+    console.error('[createCustomer] Customer data is null after insert, though no error was thrown.');
+    throw new Error('Customer creation succeeded but no data was returned.');
+  }
+  console.log('[createCustomer] Customer created successfully:', data.id);
+  return data;
+};
+
+export const updateCustomer = async (supabase: SupabaseClient, customerId: string, customerData: UpdateCustomerInput): Promise<SupabaseCustomer> => {
+  console.log(`[updateCustomer] Attempting to update customer ID: ${customerId}`);
+  const { data, error } = await supabase
+    .from('customers')
+    .update(customerData)
+    .eq('id', customerId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error(`[updateCustomer] Error updating customer ${customerId}:`, error);
+    throw new Error(`Failed to update customer: ${error.message}`);
+  }
+   if (!data) {
+    console.error(`[updateCustomer] Customer data is null after update for ID ${customerId}, though no error was thrown.`);
+    throw new Error('Customer update succeeded but no data was returned.');
+  }
+  console.log(`[updateCustomer] Customer ${customerId} updated successfully.`);
+  return data;
+};
+
+
+// Order Data Functions
 export const createOrder = async (supabase: SupabaseClient, orderInput: CreateOrderInput): Promise<SupabaseOrder> => {
   console.log('[createOrder] Attempting to create order with input:', orderInput);
   
   const { data, error } = await supabase
     .from('orders')
-    .insert([orderInput]) // orderInput now includes lat/lng
+    .insert([orderInput]) 
     .select()
     .single(); 
 
@@ -334,13 +395,12 @@ export const getProductStock = async (supabase: SupabaseClient, productId: strin
 
   if (error) {
     console.error(`[getProductStock] Error fetching stock for product ${productId}:`, error);
-    if (error.code === 'PGRST116') return null; // Product not found
+    if (error.code === 'PGRST116') return null; 
     throw new Error(`Failed to fetch stock for product ${productId}: ${error.message}`);
   }
   return data?.stock ?? null;
 };
 
-// Fetches a single order and its items by Order ID
 export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: string): Promise<AppOrder | null> => {
   console.log(`[getOrderDetailsById] Fetching order details for ID: ${orderId}`);
   const { data: orderData, error: orderError } = await supabase
@@ -350,17 +410,15 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
     .single();
 
   if (orderError) {
-    if (orderError.code === 'PGRST116') { // "No rows found"
+    if (orderError.code === 'PGRST116') { 
       console.warn(`[getOrderDetailsById] No order found with ID: ${orderId}`);
       return null;
     }
     console.error(`[getOrderDetailsById] Error fetching order ${orderId}:`, orderError);
-    // For a "get by ID", it's often better to throw if it's not a "not found" error.
     throw new Error(`Failed to fetch order ${orderId}: ${orderError.message}`);
   }
 
   if (!orderData) {
-    // This case should ideally be caught by PGRST116, but as a fallback:
     console.warn(`[getOrderDetailsById] Order data is null for ID: ${orderId}, though no error was thrown.`);
     return null;
   }
@@ -374,9 +432,6 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
 
   if (itemsError) {
     console.error(`[getOrderDetailsById] Error fetching items for order ${orderId}:`, itemsError);
-    // Decide if you want to throw or return order without items
-    // For now, we'll return the order but items array might be empty or mapping might fail
-    // A more robust approach might be to throw here too, or ensure AppOrder allows items to be undefined.
     throw new Error(`Failed to fetch items for order ${orderId}: ${itemsError.message}`);
   }
 
@@ -410,11 +465,10 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
     createdAt: orderData.created_at,
     updatedAt: orderData.updated_at,
     items: appOrderItems,
+    customerId: orderData.customer_id,
   };
 };
 
-
-// New function to find orders by various search terms
 export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTerm: string): Promise<AppOrder | null> {
   const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
   let orderIdToFetch: string | null = null;
@@ -423,32 +477,29 @@ export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTer
     console.log(`[findOrdersBySearchTerm] Search term is a UUID, using directly: ${searchTerm}`);
     orderIdToFetch = searchTerm;
   } else {
-    // Try searching by customer_email (exact, case-insensitive)
     console.log(`[findOrdersBySearchTerm] Trying to fetch by email: ${searchTerm}`);
     const { data: emailMatchOrder, error: emailError } = await supabase
       .from('orders')
-      .select('id, order_date') // Only select id and order_date for deciding
-      .ilike('customer_email', searchTerm) // Case-insensitive match for email
+      .select('id, order_date') 
+      .ilike('customer_email', searchTerm) 
       .order('order_date', { ascending: false })
       .limit(1)
       .maybeSingle();
 
     if (emailError && emailError.code !== 'PGRST116') {
       console.error(`[findOrdersBySearchTerm] Error fetching order by email ${searchTerm}:`, emailError);
-      // Not throwing, will try name next or return null if this was the last attempt.
     }
     if (emailMatchOrder) {
       console.log(`[findOrdersBySearchTerm] Found potential order by email, ID: ${emailMatchOrder.id}`);
       orderIdToFetch = emailMatchOrder.id;
     }
 
-    // If no email match, try searching by customer_name (exact, case-insensitive)
     if (!orderIdToFetch) {
       console.log(`[findOrdersBySearchTerm] No email match, trying to fetch by name: ${searchTerm}`);
       const { data: nameMatchOrder, error: nameError } = await supabase
         .from('orders')
-        .select('id, order_date') // Only select id and order_date
-        .ilike('customer_name', searchTerm) // Case-insensitive match for name
+        .select('id, order_date') 
+        .ilike('customer_name', searchTerm) 
         .order('order_date', { ascending: false })
         .limit(1)
         .maybeSingle();
