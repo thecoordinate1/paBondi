@@ -279,9 +279,9 @@ export const findCustomerByEmail = async (supabase: SupabaseClient, email: strin
     .from('customers')
     .select('*')
     .eq('email', email)
-    .maybeSingle(); // Use maybeSingle to return null if not found, instead of erroring
+    .maybeSingle(); 
 
-  if (error && error.code !== 'PGRST116') { // PGRST116 means "No rows found", which is fine
+  if (error && error.code !== 'PGRST116') { 
     console.error(`[findCustomerByEmail] Error finding customer by email ${email}:`, error);
     throw new Error(`Failed to find customer by email: ${error.message}`);
   }
@@ -315,9 +315,12 @@ export const createCustomer = async (supabase: SupabaseClient, customerData: Cre
 
 export const updateCustomer = async (supabase: SupabaseClient, customerId: string, customerData: UpdateCustomerInput): Promise<SupabaseCustomer> => {
   console.log(`[updateCustomer] Attempting to update customer ID: ${customerId}`);
+  // Ensure `updated_at` is not part of the update payload, as it's handled by a trigger.
+  const { ...updatePayload } = customerData; 
+
   const { data, error } = await supabase
     .from('customers')
-    .update(customerData)
+    .update(updatePayload)
     .eq('id', customerId)
     .select()
     .single();
@@ -415,7 +418,7 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
       return null;
     }
     console.error(`[getOrderDetailsById] Error fetching order ${orderId}:`, orderError);
-    throw new Error(`Failed to fetch order ${orderId}: ${orderError.message}`);
+    throw new Error(`Failed to fetch order ${orderId}: ${error.message}`);
   }
 
   if (!orderData) {
@@ -423,7 +426,7 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
     return null;
   }
 
-  console.log(`[getOrderDetailsById] Fetched order data:`, orderData);
+  console.log(`[getOrderDetailsById] Fetched order data for ID: ${orderId}`);
 
   const { data: itemsData, error: itemsError } = await supabase
     .from('order_items')
@@ -435,7 +438,7 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
     throw new Error(`Failed to fetch items for order ${orderId}: ${itemsError.message}`);
   }
 
-  console.log(`[getOrderDetailsById] Fetched items data for order ${orderId}:`, itemsData);
+  console.log(`[getOrderDetailsById] Fetched ${itemsData?.length || 0} items for order ${orderId}.`);
 
   const appOrderItems: AppOrderItem[] = itemsData ? itemsData.map((item: SupabaseOrderItem) => ({
     id: item.id,
@@ -469,56 +472,60 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
   };
 };
 
-export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTerm: string): Promise<AppOrder | null> {
+export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTerm: string): Promise<AppOrder[]> {
   const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-  let orderIdToFetch: string | null = null;
+  let orderIdsToFetch: string[] = [];
 
   if (uuidRegex.test(searchTerm)) {
-    console.log(`[findOrdersBySearchTerm] Search term is a UUID, using directly: ${searchTerm}`);
-    orderIdToFetch = searchTerm;
+    console.log(`[findOrdersBySearchTerm] Search term is a UUID: ${searchTerm}`);
+    const order = await getOrderDetailsById(supabase, searchTerm);
+    return order ? [order] : []; 
+  }
+
+  console.log(`[findOrdersBySearchTerm] Trying to fetch by email: ${searchTerm}`);
+  const { data: emailMatchOrders, error: emailError } = await supabase
+    .from('orders')
+    .select('id, order_date')
+    .ilike('customer_email', searchTerm)
+    .order('order_date', { ascending: false });
+
+  if (emailError && emailError.code !== 'PGRST116') {
+    console.error(`[findOrdersBySearchTerm] Error fetching orders by email ${searchTerm}:`, emailError);
+    return []; // Return empty on error for now, or throw
+  }
+
+  if (emailMatchOrders && emailMatchOrders.length > 0) {
+    console.log(`[findOrdersBySearchTerm] Found ${emailMatchOrders.length} orders by email.`);
+    orderIdsToFetch = emailMatchOrders.map(o => o.id);
   } else {
-    console.log(`[findOrdersBySearchTerm] Trying to fetch by email: ${searchTerm}`);
-    const { data: emailMatchOrder, error: emailError } = await supabase
+    console.log(`[findOrdersBySearchTerm] No email match, trying to fetch by name (most recent): ${searchTerm}`);
+    const { data: nameMatchOrder, error: nameError } = await supabase
       .from('orders')
-      .select('id, order_date') 
-      .ilike('customer_email', searchTerm) 
+      .select('id, order_date')
+      .ilike('customer_name', searchTerm)
       .order('order_date', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (emailError && emailError.code !== 'PGRST116') {
-      console.error(`[findOrdersBySearchTerm] Error fetching order by email ${searchTerm}:`, emailError);
+    if (nameError && nameError.code !== 'PGRST116') {
+      console.error(`[findOrdersBySearchTerm] Error fetching order by name ${searchTerm}:`, nameError);
+      return []; // Return empty on error
     }
-    if (emailMatchOrder) {
-      console.log(`[findOrdersBySearchTerm] Found potential order by email, ID: ${emailMatchOrder.id}`);
-      orderIdToFetch = emailMatchOrder.id;
-    }
-
-    if (!orderIdToFetch) {
-      console.log(`[findOrdersBySearchTerm] No email match, trying to fetch by name: ${searchTerm}`);
-      const { data: nameMatchOrder, error: nameError } = await supabase
-        .from('orders')
-        .select('id, order_date') 
-        .ilike('customer_name', searchTerm) 
-        .order('order_date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (nameError && nameError.code !== 'PGRST116') {
-        console.error(`[findOrdersBySearchTerm] Error fetching order by name ${searchTerm}:`, nameError);
-      }
-      if (nameMatchOrder) {
-        console.log(`[findOrdersBySearchTerm] Found potential order by name, ID: ${nameMatchOrder.id}`);
-        orderIdToFetch = nameMatchOrder.id;
-      }
+    if (nameMatchOrder) {
+      console.log(`[findOrdersBySearchTerm] Found order by name, ID: ${nameMatchOrder.id}`);
+      orderIdsToFetch = [nameMatchOrder.id];
     }
   }
 
-  if (orderIdToFetch) {
-    console.log(`[findOrdersBySearchTerm] Proceeding to fetch full details for Order ID: ${orderIdToFetch}`);
-    return getOrderDetailsById(supabase, orderIdToFetch);
+  if (orderIdsToFetch.length > 0) {
+    console.log(`[findOrdersBySearchTerm] Proceeding to fetch full details for Order IDs: ${orderIdsToFetch.join(', ')}`);
+    const fetchedOrdersPromises = orderIdsToFetch.map(id => getOrderDetailsById(supabase, id));
+    const resolvedOrders = await Promise.all(fetchedOrdersPromises);
+    const validOrders = resolvedOrders.filter(order => order !== null) as AppOrder[];
+    console.log(`[findOrdersBySearchTerm] Fetched details for ${validOrders.length} orders.`);
+    return validOrders;
   }
 
-  console.log(`[findOrdersBySearchTerm] No order found matching term: ${searchTerm}`);
-  return null;
+  console.log(`[findOrdersBySearchTerm] No orders found matching term: ${searchTerm}`);
+  return []; 
 }

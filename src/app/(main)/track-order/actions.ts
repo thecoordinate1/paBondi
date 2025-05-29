@@ -3,16 +3,16 @@
 
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
-import { findOrdersBySearchTerm } from '@/lib/data'; // Changed from getOrderDetailsById
+import { findOrdersBySearchTerm } from '@/lib/data'; 
 import type { AppOrder } from '@/types';
 
-interface FetchOrderResult {
+interface FetchOrdersResult { // Changed to FetchOrdersResult (plural)
   success: boolean;
-  order?: AppOrder | null;
+  orders?: AppOrder[] | null; // Changed to array
   error?: string;
 }
 
-export async function fetchOrderAction(searchTerm: string): Promise<FetchOrderResult> {
+export async function fetchOrderAction(searchTerm: string): Promise<FetchOrdersResult> {
   if (!searchTerm || typeof searchTerm !== 'string' || searchTerm.trim() === '') {
     return { success: false, error: 'Invalid search term.' };
   }
@@ -21,14 +21,16 @@ export async function fetchOrderAction(searchTerm: string): Promise<FetchOrderRe
   const supabase = createClient(cookieStore);
 
   try {
-    const order = await findOrdersBySearchTerm(supabase, searchTerm.trim()); // Use new function
-    if (order) {
-      return { success: true, order: order };
+    const ordersArray = await findOrdersBySearchTerm(supabase, searchTerm.trim());
+    
+    if (ordersArray.length > 0) {
+      return { success: true, orders: ordersArray };
     } else {
-      return { success: false, order: null, error: 'No order found matching your search criteria.' };
+      // This now means no orders found for any criteria (ID, email, or name)
+      return { success: false, orders: [], error: 'No orders found matching your search criteria.' };
     }
   } catch (error) {
-    console.error(`[fetchOrderAction] Error fetching order with term "${searchTerm}":`, error);
-    return { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred while fetching your order.' };
+    console.error(`[fetchOrderAction] Error fetching order(s) with term "${searchTerm}":`, error);
+    return { success: false, error: error instanceof Error ? error.message : 'An unexpected error occurred while fetching your order(s).' };
   }
 }

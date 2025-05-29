@@ -14,57 +14,131 @@ import Image from 'next/image';
 import { PackageSearch, AlertCircle, Info, ShoppingBag, UserCircle, MapPin, CalendarDays, Hash, Truck, CreditCard, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
+const OrderItemCard = ({ item }: { item: AppOrderItem }) => (
+  <div className="flex items-center gap-4 py-3 border-b last:border-b-0">
+    <Image
+      src={item.imageUrl || 'https://placehold.co/80x80.png'}
+      alt={item.name}
+      width={80}
+      height={80}
+      className="rounded-md aspect-square object-cover border"
+      data-ai-hint="order item product"
+    />
+    <div className="flex-grow">
+      <h4 className="font-semibold">{item.name}</h4>
+      <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+      <p className="text-sm text-muted-foreground">
+        Price: ${item.pricePerUnit.toFixed(2)} each
+      </p>
+    </div>
+    <p className="font-semibold text-lg">${item.totalPrice.toFixed(2)}</p>
+  </div>
+);
+
+const DisplayOrderCard = ({ order }: { order: AppOrder }) => (
+  <Card className="shadow-xl overflow-hidden mt-6">
+    <CardHeader className="bg-muted/30 p-6">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+        <div>
+          <CardTitle className="text-2xl md:text-3xl text-primary">Order Details</CardTitle>
+          <CardDescription className="flex items-center gap-1.5 mt-1">
+            <Hash size={14}/> ID: {order.id}
+          </CardDescription>
+        </div>
+        <div className="text-sm sm:text-right">
+          <p className="font-semibold text-lg">Status: <span className="text-primary">{order.status}</span></p>
+          <p className="text-muted-foreground flex items-center gap-1.5 justify-start sm:justify-end">
+            <CalendarDays size={14}/> Ordered on: {format(new Date(order.orderDate), "PPP p")}
+          </p>
+        </div>
+      </div>
+    </CardHeader>
+    <CardContent className="p-6 space-y-6">
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2"><UserCircle size={22}/> Customer Information</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm space-y-1">
+            <p><strong>Name:</strong> {order.customerName}</p>
+            <p><strong>Email:</strong> {order.customerEmail}</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2"><MapPin size={22}/>Shipping Address</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm space-y-1">
+            <p>{order.shippingAddress}</p>
+            {order.shippingLatitude && order.shippingLongitude && (
+               <p className="text-xs text-muted-foreground">
+                 Coords: {order.shippingLatitude.toFixed(4)}, {order.shippingLongitude.toFixed(4)}
+               </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div>
+        <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><ShoppingBag size={22}/>Items Ordered</h3>
+        <div className="space-y-3 divide-y divide-border rounded-md border bg-card p-4 shadow-inner">
+          {order.items.length > 0 ? (
+            order.items.map(item => <OrderItemCard key={item.id} item={item} />)
+          ) : (
+            <p className="text-muted-foreground py-4 text-center">No items found for this order.</p>
+          )}
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="grid sm:grid-cols-2 gap-4 text-sm">
+        <div>
+          {order.shippingMethod && <p><Truck size={16} className="inline mr-2 text-muted-foreground"/><strong>Shipping Method:</strong> {order.shippingMethod}</p>}
+          {order.paymentMethod && <p><CreditCard size={16} className="inline mr-2 text-muted-foreground"/><strong>Payment Method:</strong> {order.paymentMethod} (Simulated)</p>}
+          {order.trackingNumber && <p><PackageSearch size={16} className="inline mr-2 text-muted-foreground"/><strong>Tracking #:</strong> {order.trackingNumber}</p>}
+        </div>
+        <div className="sm:text-right">
+          <p className="text-lg font-semibold">Order Total: <span className="text-primary">${order.totalAmount.toFixed(2)}</span></p>
+        </div>
+      </div>
+    </CardContent>
+     <CardFooter className="bg-muted/20 p-4 text-center">
+       <p className="text-xs text-muted-foreground w-full">
+         If you have any questions about your order, please contact support with your Order ID.
+       </p>
+     </CardFooter>
+  </Card>
+);
+
+
 export default function TrackOrderPage() {
-  const [searchInput, setSearchInput] = useState(''); // Renamed from orderIdInput
-  const [order, setOrder] = useState<AppOrder | null | undefined>(undefined); // undefined initially, null if not found
+  const [searchInput, setSearchInput] = useState('');
+  const [orders, setOrders] = useState<AppOrder[] | null | undefined>(undefined); // Changed to AppOrder[]
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleTrackOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!searchInput.trim()) {
-      setError("Please enter an Order ID, Email, or Name."); // Updated message
-      setOrder(undefined);
+      setError("Please enter an Order ID, Email, or Name.");
+      setOrders(undefined);
       return;
     }
     setIsLoading(true);
     setError(null);
-    setOrder(undefined);
+    setOrders(undefined);
 
     const result = await fetchOrderAction(searchInput.trim());
-    if (result.success) {
-      setOrder(result.order); 
-      if (!result.order) {
-        // Error message is now set by the action if order is not found
-        setError(result.error || `No order found matching: ${searchInput.trim()}`);
-      }
+    if (result.success && result.orders && result.orders.length > 0) {
+      setOrders(result.orders);
     } else {
-      setError(result.error || "Failed to fetch order details.");
-      setOrder(null);
+      // This handles both failure from action OR success with empty orders array
+      setError(result.error || `No orders found matching: ${searchInput.trim()}`);
+      setOrders([]); // Set to empty array to signify search was done but no results
     }
     setIsLoading(false);
   };
-
-  const OrderItemCard = ({ item }: { item: AppOrderItem }) => (
-    <div className="flex items-center gap-4 py-3 border-b last:border-b-0">
-      <Image
-        src={item.imageUrl || 'https://placehold.co/80x80.png'}
-        alt={item.name}
-        width={80}
-        height={80}
-        className="rounded-md aspect-square object-cover border"
-        data-ai-hint="order item product"
-      />
-      <div className="flex-grow">
-        <h4 className="font-semibold">{item.name}</h4>
-        <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
-        <p className="text-sm text-muted-foreground">
-          Price: ${item.pricePerUnit.toFixed(2)} each
-        </p>
-      </div>
-      <p className="font-semibold text-lg">${item.totalPrice.toFixed(2)}</p>
-    </div>
-  );
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
@@ -80,13 +154,13 @@ export default function TrackOrderPage() {
             <div>
               <Label htmlFor="searchInput" className="text-base">Order ID, Email, or Name</Label> 
               <Input
-                id="searchInput" // Changed ID
+                id="searchInput"
                 type="text"
                 value={searchInput}
                 onChange={(e) => {
                   setSearchInput(e.target.value);
                   setError(null); 
-                  if (order !== undefined) setOrder(undefined); 
+                  if (orders !== undefined) setOrders(undefined); 
                 }}
                 placeholder="Enter Order ID, Email, or Full Name" 
                 className="mt-1 text-base"
@@ -112,90 +186,24 @@ export default function TrackOrderPage() {
         </Alert>
       )}
 
-      {order === null && !isLoading && !error && ( 
+      {/* Show "No orders found" message if orders array is empty after a search */}
+      {orders && orders.length === 0 && !isLoading && !error && ( 
         <Alert variant="default" className="shadow-md bg-card border-primary/20">
           <Info className="h-5 w-5 text-primary" />
-          <AlertTitle className="text-primary">Order Not Found</AlertTitle>
+          <AlertTitle className="text-primary">No Orders Found</AlertTitle>
           <AlertDescription>
-            We couldn't find an order matching your criteria: <strong>{searchInput}</strong>. Please check your input and try again.
+            We couldn't find any orders matching your criteria: <strong>{searchInput}</strong>. Please check your input and try again.
           </AlertDescription>
         </Alert>
       )}
 
-      {order && typeof order === 'object' && !isLoading && (
-        <Card className="shadow-xl overflow-hidden">
-          <CardHeader className="bg-muted/30 p-6">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-              <div>
-                <CardTitle className="text-2xl md:text-3xl text-primary">Order Details</CardTitle>
-                <CardDescription className="flex items-center gap-1.5 mt-1">
-                  <Hash size={14}/> ID: {order.id}
-                </CardDescription>
-              </div>
-              <div className="text-sm sm:text-right">
-                <p className="font-semibold text-lg">Status: <span className="text-primary">{order.status}</span></p>
-                <p className="text-muted-foreground flex items-center gap-1.5 justify-start sm:justify-end">
-                  <CalendarDays size={14}/> Ordered on: {format(new Date(order.orderDate), "PPP p")}
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6 space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle className="text-xl flex items-center gap-2"><UserCircle size={22}/> Customer Information</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm space-y-1">
-                  <p><strong>Name:</strong> {order.customerName}</p>
-                  <p><strong>Email:</strong> {order.customerEmail}</p>
-                </CardContent>
-              </Card>
-              <Card className="shadow-md">
-                <CardHeader>
-                  <CardTitle className="text-xl flex items-center gap-2"><MapPin size={22}/>Shipping Address</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm space-y-1">
-                  <p>{order.shippingAddress}</p>
-                  {order.shippingLatitude && order.shippingLongitude && (
-                     <p className="text-xs text-muted-foreground">
-                       Coords: {order.shippingLatitude.toFixed(4)}, {order.shippingLongitude.toFixed(4)}
-                     </p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            <div>
-              <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><ShoppingBag size={22}/>Items Ordered</h3>
-              <div className="space-y-3 divide-y divide-border rounded-md border bg-card p-4 shadow-inner">
-                {order.items.length > 0 ? (
-                  order.items.map(item => <OrderItemCard key={item.id} item={item} />)
-                ) : (
-                  <p className="text-muted-foreground py-4 text-center">No items found for this order.</p>
-                )}
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="grid sm:grid-cols-2 gap-4 text-sm">
-              <div>
-                {order.shippingMethod && <p><Truck size={16} className="inline mr-2 text-muted-foreground"/><strong>Shipping Method:</strong> {order.shippingMethod}</p>}
-                {order.paymentMethod && <p><CreditCard size={16} className="inline mr-2 text-muted-foreground"/><strong>Payment Method:</strong> {order.paymentMethod} (Simulated)</p>}
-                {order.trackingNumber && <p><PackageSearch size={16} className="inline mr-2 text-muted-foreground"/><strong>Tracking #:</strong> {order.trackingNumber}</p>}
-              </div>
-              <div className="sm:text-right">
-                <p className="text-lg font-semibold">Order Total: <span className="text-primary">${order.totalAmount.toFixed(2)}</span></p>
-              </div>
-            </div>
-          </CardContent>
-           <CardFooter className="bg-muted/20 p-4 text-center">
-             <p className="text-xs text-muted-foreground w-full">
-               If you have any questions about your order, please contact support with your Order ID.
-             </p>
-           </CardFooter>
-        </Card>
+      {/* Display orders if found */}
+      {orders && orders.length > 0 && !isLoading && (
+        <div className="space-y-6">
+          {orders.map(order => (
+            <DisplayOrderCard key={order.id} order={order} />
+          ))}
+        </div>
       )}
     </div>
   );

@@ -118,7 +118,7 @@ export interface CreateCustomerInput {
 
 export interface UpdateCustomerInput {
   name?: string;
-  email?: string;
+  // email?: string; // usually not updated if it's an identifier
   phone?: string | null;
   avatar_url?: string | null;
   status?: string;
