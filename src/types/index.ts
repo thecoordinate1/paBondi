@@ -1,4 +1,9 @@
 
+export interface SocialLinkItem {
+  platform: string;
+  url: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -19,6 +24,9 @@ export interface Store {
   name: string;
   logoUrl: string;
   description: string;
+  category?: string;
+  location?: string | null;
+  socialLinks?: SocialLinkItem[];
   featured?: boolean;
 }
 
@@ -133,3 +141,4 @@ export interface UpdateCustomerInput {
   tags?: string[] | null;
   // updated_at will be handled by trigger
 }
+

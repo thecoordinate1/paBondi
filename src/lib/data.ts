@@ -1,6 +1,6 @@
 
-import type { Store, Product, CreateOrderInput, CreateOrderItemInput, AppOrder, AppOrderItem, CreateCustomerInput, UpdateCustomerInput } from '@/types';
-import type { Product as SupabaseProduct, Store as SupabaseStore, ProductImage as SupabaseProductImage, Order as SupabaseOrder, OrderItem as SupabaseOrderItem, Customer as SupabaseCustomer } from '@/types/supabase';
+import type { Store, Product, CreateOrderInput, CreateOrderItemInput, AppOrder, AppOrderItem, CreateCustomerInput, UpdateCustomerInput, SocialLinkItem } from '@/types';
+import type { Product as SupabaseProduct, Store as SupabaseStore, ProductImage as SupabaseProductImage, Order as SupabaseOrder, OrderItem as SupabaseOrderItem, Customer as SupabaseCustomer, SocialLink as SupabaseSocialLink } from '@/types/supabase';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const mapSupabaseProductToAppProduct = async (
@@ -61,12 +61,18 @@ const mapSupabaseProductToAppProduct = async (
   };
 };
 
-const mapSupabaseStoreToAppStore = (supabaseStore: SupabaseStore): Store => {
+const mapSupabaseStoreToAppStore = (
+  supabaseStore: SupabaseStore, 
+  socialLinks?: SupabaseSocialLink[]
+): Store => {
   return {
     id: supabaseStore.id,
     name: supabaseStore.name,
     logoUrl: supabaseStore.logo_url || 'https://placehold.co/100x100.png?text=No+Logo',
     description: supabaseStore.description,
+    category: supabaseStore.category,
+    location: supabaseStore.location,
+    socialLinks: socialLinks?.map(sl => ({ platform: sl.platform, url: sl.url })) || [],
   };
 };
 
@@ -86,30 +92,44 @@ export const getAllStores = async (supabase: SupabaseClient): Promise<Store[]> =
   } else {
     console.log(`[getAllStores] Fetched ${data.length} "Active" stores.`);
   }
-  return data ? data.map(mapSupabaseStoreToAppStore) : [];
+  // For getAllStores, we might not need detailed social links immediately to keep it performant
+  // If needed on the all stores page, this would need to be fetched separately or as a join.
+  return data ? data.map(store => mapSupabaseStoreToAppStore(store)) : [];
 };
 
 export const getStoreById = async (supabase: SupabaseClient, id: string): Promise<Store | undefined> => {
-  const { data, error } = await supabase
+  const { data: storeData, error: storeError } = await supabase
     .from('stores')
     .select('*')
     .eq('id', id)
     .eq('status', 'Active')
     .single();
 
-  if (error) {
-    if (error.code === 'PGRST116') { 
+  if (storeError) {
+    if (storeError.code === 'PGRST116') { 
       console.warn(`[getStoreById] No store found with ID: ${id} and status "Active".`);
       return undefined;
     }
-    console.error(`[getStoreById] Error fetching store ${id}:`, error);
-    throw new Error(`Failed to fetch store ${id}: ${error.message}`);
+    console.error(`[getStoreById] Error fetching store ${id}:`, storeError);
+    throw new Error(`Failed to fetch store ${id}: ${storeError.message}`);
   }
-   if (!data) { 
+   if (!storeData) { 
      console.warn(`[getStoreById] Store data is null for ID: ${id} (and status "Active").`);
     return undefined;
   }
-  return mapSupabaseStoreToAppStore(data);
+
+  // Fetch social links for the store
+  const { data: socialLinksData, error: socialLinksError } = await supabase
+    .from('social_links')
+    .select('platform, url')
+    .eq('store_id', id);
+
+  if (socialLinksError) {
+    console.error(`[getStoreById] Error fetching social links for store ${id}:`, socialLinksError);
+    // Continue without social links if there's an error
+  }
+
+  return mapSupabaseStoreToAppStore(storeData, socialLinksData || undefined);
 };
 
 export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store[]> => {
@@ -130,7 +150,7 @@ export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store
   } else {
     console.log(`[getFeaturedStores] Fetched ${data.length} "Active" featured stores.`);
   }
-  return data ? data.map(mapSupabaseStoreToAppStore) : [];
+  return data ? data.map(store => mapSupabaseStoreToAppStore(store)) : []; // Social links not fetched for featured cards for brevity
 };
 
 export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
@@ -315,7 +335,6 @@ export const createCustomer = async (supabase: SupabaseClient, customerData: Cre
 
 export const updateCustomer = async (supabase: SupabaseClient, customerId: string, customerData: UpdateCustomerInput): Promise<SupabaseCustomer> => {
   console.log(`[updateCustomer] Attempting to update customer ID: ${customerId}`);
-  // Ensure `updated_at` is not part of the update payload, as it's handled by a trigger.
   const { ...updatePayload } = customerData; 
 
   const { data, error } = await supabase
@@ -485,13 +504,13 @@ export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTer
   console.log(`[findOrdersBySearchTerm] Trying to fetch by email: ${searchTerm}`);
   const { data: emailMatchOrders, error: emailError } = await supabase
     .from('orders')
-    .select('id, order_date')
+    .select('id, order_date') // Only select id and order_date for sorting
     .ilike('customer_email', searchTerm)
     .order('order_date', { ascending: false });
 
-  if (emailError && emailError.code !== 'PGRST116') {
+  if (emailError && emailError.code !== 'PGRST116') { // PGRST116 means no rows found, not an error
     console.error(`[findOrdersBySearchTerm] Error fetching orders by email ${searchTerm}:`, emailError);
-    return []; // Return empty on error for now, or throw
+    return []; // Return empty on error for now
   }
 
   if (emailMatchOrders && emailMatchOrders.length > 0) {
@@ -501,7 +520,7 @@ export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTer
     console.log(`[findOrdersBySearchTerm] No email match, trying to fetch by name (most recent): ${searchTerm}`);
     const { data: nameMatchOrder, error: nameError } = await supabase
       .from('orders')
-      .select('id, order_date')
+      .select('id, order_date') // Only select id and order_date
       .ilike('customer_name', searchTerm)
       .order('order_date', { ascending: false })
       .limit(1)
@@ -509,7 +528,7 @@ export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTer
 
     if (nameError && nameError.code !== 'PGRST116') {
       console.error(`[findOrdersBySearchTerm] Error fetching order by name ${searchTerm}:`, nameError);
-      return []; // Return empty on error
+      return [];
     }
     if (nameMatchOrder) {
       console.log(`[findOrdersBySearchTerm] Found order by name, ID: ${nameMatchOrder.id}`);
@@ -521,6 +540,7 @@ export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTer
     console.log(`[findOrdersBySearchTerm] Proceeding to fetch full details for Order IDs: ${orderIdsToFetch.join(', ')}`);
     const fetchedOrdersPromises = orderIdsToFetch.map(id => getOrderDetailsById(supabase, id));
     const resolvedOrders = await Promise.all(fetchedOrdersPromises);
+    // Filter out any nulls that might occur if an order detail fetch fails for some reason
     const validOrders = resolvedOrders.filter(order => order !== null) as AppOrder[];
     console.log(`[findOrdersBySearchTerm] Fetched details for ${validOrders.length} orders.`);
     return validOrders;
@@ -529,3 +549,4 @@ export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTer
   console.log(`[findOrdersBySearchTerm] No orders found matching term: ${searchTerm}`);
   return []; 
 }
+

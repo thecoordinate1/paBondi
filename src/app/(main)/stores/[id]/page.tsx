@@ -3,18 +3,30 @@ import { getStoreById, getProductsByStoreId, getAllStores } from '@/lib/data';
 import ProductCard from '@/components/ProductCard';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, MapPin, Tag, Link as LinkIcon, Instagram, Twitter, Facebook, Youtube, Linkedin, Github } from 'lucide-react';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import type { CookieOptions } from '@supabase/ssr';
+import { Badge } from '@/components/ui/badge';
 
 
 interface StoreDetailsPageProps {
   params: { id: string };
 }
+
+const SocialIcon = ({ platform }: { platform: string }) => {
+  const lowerPlatform = platform.toLowerCase();
+  if (lowerPlatform === 'instagram') return <Instagram size={20} />;
+  if (lowerPlatform === 'twitter') return <Twitter size={20} />;
+  if (lowerPlatform === 'facebook') return <Facebook size={20} />;
+  if (lowerPlatform === 'youtube') return <Youtube size={20} />;
+  if (lowerPlatform === 'linkedin') return <Linkedin size={20} />;
+  if (lowerPlatform === 'github') return <Github size={20} />;
+  return <LinkIcon size={20} />;
+};
 
 export default async function StoreDetailsPage({ params }: StoreDetailsPageProps) {
   const cookieStore = cookies();
@@ -31,7 +43,7 @@ export default async function StoreDetailsPage({ params }: StoreDetailsPageProps
   return (
     <div className="space-y-8">
       <Link href="/stores" passHref>
-        <Button variant="outline" className="mb-6">
+        <Button variant="outline" className="mb-0"> {/* Changed mb-6 to mb-0 or adjust as needed */}
           <ArrowLeft size={16} className="mr-2" /> Back to Stores
         </Button>
       </Link>
@@ -50,9 +62,40 @@ export default async function StoreDetailsPage({ params }: StoreDetailsPageProps
             <div className="flex-1">
               <CardTitle className="text-3xl md:text-4xl font-bold text-primary">{store.name}</CardTitle>
               <CardDescription className="text-lg text-foreground/80 mt-2">{store.description}</CardDescription>
+              
+              <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 items-center">
+                {store.category && (
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Tag size={16} className="mr-2 text-primary" />
+                    Category: <Badge variant="secondary" className="ml-2">{store.category}</Badge>
+                  </div>
+                )}
+                {store.location && (
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <MapPin size={16} className="mr-2 text-primary" />
+                    Location: <span className="font-medium ml-1 text-foreground/90">{store.location}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </CardHeader>
+        
+        {store.socialLinks && store.socialLinks.length > 0 && (
+          <CardContent className="p-6 md:p-8 border-t">
+            <h3 className="text-lg font-semibold text-foreground mb-3">Connect with us:</h3>
+            <div className="flex flex-wrap gap-4">
+              {store.socialLinks.map((link, index) => (
+                <Button key={index} variant="outline" size="sm" asChild>
+                  <a href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center">
+                    <SocialIcon platform={link.platform} />
+                    <span className="ml-2 capitalize">{link.platform}</span>
+                  </a>
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        )}
       </Card>
       
       <section aria-labelledby="store-products-heading">
@@ -78,13 +121,11 @@ const buildTimeCookieStoreForStores = {
   get: (name: string) => { return undefined; },
   set: (name: string, value: string, options: CookieOptions) => {},
   remove: (name: string, options: CookieOptions) => {},
-  // Ensure it matches ReturnType<typeof import('next/headers').cookies> if more methods are needed by your createClient
 } as ReturnType<typeof import('next/headers').cookies>;
 
 
 export async function generateStaticParams() {
-  // Create a Supabase client instance suitable for build time
   const supabase = createClient(buildTimeCookieStoreForStores);
-  const stores = await getAllStores(supabase); // Pass the client to getAllStores
+  const stores = await getAllStores(supabase); 
   return stores.map(store => ({ id: store.id }));
 }
