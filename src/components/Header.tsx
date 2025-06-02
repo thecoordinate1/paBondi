@@ -62,7 +62,7 @@ const CartButtonContent = ({ itemCount, hasMounted }: { itemCount: number; hasMo
 const Header = () => {
   const { getItemCount } = useCart();
   const itemCount = getItemCount();
-  const currentLayoutIsMobile = useIsMobile(); // Keep the hook call
+  const currentLayoutIsMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const [hasMounted, setHasMounted] = useState(false);
@@ -72,10 +72,11 @@ const Header = () => {
   }, []);
 
   useEffect(() => {
+    // Close the mobile menu if it's open and the pathname changes.
     if (mobileMenuOpen) {
       setMobileMenuOpen(false);
     }
-  }, [pathname, mobileMenuOpen]); // Added mobileMenuOpen to dependency array
+  }, [pathname]); // Only run when pathname changes
 
   const navLinksContent = (isSheet = false) => (
     <>
@@ -88,16 +89,13 @@ const Header = () => {
   const renderNavigation = () => {
     if (!hasMounted) {
       // Render a minimal, consistent structure for SSR and initial client render
-      // This structure should be common to both mobile and desktop before hydration
       return (
         <nav className="flex items-center space-x-2 sm:space-x-4">
-          {/* Desktop-like structure for cart button as a baseline */}
           <Link href="/cart" passHref>
             <Button variant="ghost" className="relative text-foreground/70 hover:text-foreground">
-              <CartButtonContent itemCount={0} hasMounted={false} /> {/* Default to 0 items, no badge before mount */}
+              <CartButtonContent itemCount={0} hasMounted={false} />
             </Button>
           </Link>
-          {/* Placeholder for mobile menu trigger to ensure DOM consistency if needed */}
           <div className="md:hidden">
              <Button variant="ghost" size="icon" className="text-foreground/70 hover:text-foreground" aria-hidden="true" disabled>
                 <Menu size={24} />
@@ -107,7 +105,6 @@ const Header = () => {
       );
     }
 
-    // Post-hydration rendering based on actual mobile state
     if (currentLayoutIsMobile) {
       return (
         <div className="flex items-center space-x-2">
