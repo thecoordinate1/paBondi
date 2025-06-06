@@ -142,3 +142,17 @@ export interface UpdateCustomerInput {
   // updated_at will be handled by trigger
 }
 
+// For Server Action return type
+export interface FetchOrdersResult {
+  success: boolean;
+  orders?: AppOrder[] | null;
+  error?: string;
+}
+
+export interface PlaceOrderResult {
+  success: boolean;
+  orderIds?: string[];
+  message?: string;
+  error?: string; // General error if all fail before processing stores or critical customer error
+  detailedErrors?: { storeId?: string; storeName?: string; message: string }[];
+}

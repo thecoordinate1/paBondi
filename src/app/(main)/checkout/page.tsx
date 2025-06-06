@@ -12,11 +12,14 @@ import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { OrderFormData } from '@/types';
+import type { OrderFormData, PlaceOrderResult } from '@/types'; // Updated PlaceOrderResult
 import { placeOrderAction } from './actions';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
+import Link from 'next/link'; // Keep Link import
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, Info } from 'lucide-react';
+
 
 const checkoutFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -40,10 +43,12 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [submissionErrors, setSubmissionErrors] = useState<{ storeId?: string; storeName?: string; message: string }[] | null>(null);
+
 
   useEffect(() => {
     setIsClient(true);
-    if (cartItems.length === 0 && isClient) { // Check isClient to avoid redirect during SSR/initial render
+    if (cartItems.length === 0 && isClient) { 
       toast({
         title: "Your cart is empty",
         description: "Please add items to your cart before proceeding to checkout.",
@@ -60,21 +65,34 @@ export default function CheckoutPage() {
 
   const onSubmit: SubmitHandler<OrderFormData> = async (data) => {
     setIsSubmitting(true);
+    setSubmissionErrors(null);
     try {
-      const result = await placeOrderAction(data, cartItems, getCartTotal());
-      if (result.success) {
+      // totalAmount is no longer passed to placeOrderAction
+      const result: PlaceOrderResult = await placeOrderAction(data, cartItems); 
+      
+      if (result.success && result.orderIds && result.orderIds.length > 0) {
         toast({
-          title: "Order Placed!",
-          description: `Your order #${result.orderId} has been placed successfully.`,
+          title: "Order(s) Placed!",
+          description: `Successfully placed ${result.orderIds.length} order(s). IDs: ${result.orderIds.join(', ')}. ${result.message || ''}`,
         });
-        clearCart();
-        router.push('/'); // Redirect to homepage
+        if (!result.detailedErrors || result.detailedErrors.length === 0) {
+            clearCart(); // Only clear cart if no partial failures
+            router.push('/'); 
+        } else {
+            setSubmissionErrors(result.detailedErrors);
+        }
       } else {
+        // Overall failure or no orders placed
         toast({
           title: "Order Failed",
-          description: result.error || "Could not place your order. Please try again.",
+          description: result.error || "Could not place your order(s). Please try again or check details below.",
           variant: "destructive",
         });
+        if (result.detailedErrors && result.detailedErrors.length > 0) {
+            setSubmissionErrors(result.detailedErrors);
+        } else if (result.error) {
+            setSubmissionErrors([{ message: result.error }]);
+        }
       }
     } catch (error) {
       console.error("Checkout error:", error);
@@ -83,13 +101,13 @@ export default function CheckoutPage() {
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
+       setSubmissionErrors([{ message: "An unexpected client-side error occurred." }]);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (!isClient || cartItems.length === 0) {
-    // Render loading or minimal content until client-side check completes or if cart is empty
     return (
       <div className="flex justify-center items-center min-h-[calc(100vh-200px)]">
         <p className="text-muted-foreground">Loading checkout...</p>
@@ -100,6 +118,23 @@ export default function CheckoutPage() {
   return (
     <div className="space-y-8">
       <h1 className="text-3xl md:text-4xl font-bold text-foreground">Checkout</h1>
+      
+      {submissionErrors && submissionErrors.length > 0 && (
+        <Alert variant="destructive" className="shadow-md">
+          <AlertCircle className="h-5 w-5" />
+          <AlertTitle>Order Processing Issues</AlertTitle>
+          <AlertDescription>
+            <ul className="list-disc list-inside space-y-1">
+              {submissionErrors.map((err, index) => (
+                <li key={index}>
+                  {err.storeName ? `Store ${err.storeName}: ` : ''}{err.message}
+                </li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-8 items-start">
         {/* Order Summary Column */}
         <div className="lg:col-span-1 lg:order-last">
@@ -109,8 +144,8 @@ export default function CheckoutPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {cartItems.map(item => (
-                <div key={item.id} className="flex justify-between items-center text-sm py-2 border-b last:border-b-0">
-                  <div className="flex items-center gap-3">
+                <div key={item.id} className="flex justify-between items-start text-sm py-2 border-b last:border-b-0">
+                  <div className="flex items-center gap-3 flex-grow">
                      <Image 
                         src={item.imageUrls[0]} 
                         alt={item.name} 
@@ -119,12 +154,15 @@ export default function CheckoutPage() {
                         className="rounded aspect-square object-cover border"
                         data-ai-hint="cart item"
                       />
-                    <div>
+                    <div className="flex-grow">
                       <p className="font-medium">{item.name} (x{item.quantity})</p>
                       <p className="text-xs text-muted-foreground">${item.price.toFixed(2)} each</p>
+                      {item.storeName && (
+                        <p className="text-xs text-muted-foreground">From: {item.storeName}</p>
+                      )}
                     </div>
                   </div>
-                  <p className="font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
+                  <p className="font-semibold ml-2 shrink-0">${(item.price * item.quantity).toFixed(2)}</p>
                 </div>
               ))}
               <Separator />
@@ -200,7 +238,7 @@ export default function CheckoutPage() {
                 </p>
                 <CardFooter className="p-0 pt-4">
                   <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? 'Placing Order...' : 'Place Order & Simulate Payment'}
+                    {isSubmitting ? 'Placing Order(s)...' : 'Place Order(s) & Simulate Payment'}
                   </Button>
                 </CardFooter>
               </form>
