@@ -36,6 +36,22 @@ export async function placeOrderAction(
     itemsByStore.get(item.storeId)!.push(item);
   }
 
+  // Parse location coordinates from form data
+  let latitude: number;
+  let longitude: number;
+
+  try {
+    const coords = formData.location.split(',').map(s => s.trim());
+    if (coords.length !== 2) throw new Error("Invalid coordinate format.");
+    latitude = parseFloat(coords[0]);
+    longitude = parseFloat(coords[1]);
+    if (isNaN(latitude) || isNaN(longitude)) throw new Error("Coordinates are not valid numbers.");
+  } catch (e) {
+      console.error("[placeOrderAction] Error parsing coordinates:", e);
+      return { success: false, error: 'Invalid location coordinates provided. Please use the format "latitude, longitude".' };
+  }
+
+
   let customerIdToLink: string | null = null;
   let existingCustomerTotalOrders = 0;
   let existingCustomerTotalSpent = 0.0;
@@ -53,11 +69,9 @@ export async function placeOrderAction(
       // Update name/address immediately if changed from form, other stats later
       const customerPrimeUpdate: UpdateCustomerInput = {
         name: formData.name,
-        street_address: formData.streetAddress,
-        city: formData.city,
-        state_province: formData.stateProvince,
-        zip_postal_code: formData.zipPostalCode,
-        country: formData.country,
+        phone: formData.contactNumber,
+        // Since we removed address fields, we clear them or handle them differently
+        // For now, we will not update address fields here.
       };
       await updateCustomer(supabase, customerIdToLink, customerPrimeUpdate);
 
@@ -66,12 +80,10 @@ export async function placeOrderAction(
       const newCustomerData: CreateCustomerInput = {
         name: formData.name,
         email: formData.email,
+        phone: formData.contactNumber,
         status: 'active',
-        street_address: formData.streetAddress,
-        city: formData.city,
-        state_province: formData.stateProvince,
-        zip_postal_code: formData.zipPostalCode,
-        country: formData.country,
+        street_address: `Coordinates: ${formData.location}`, // Store coordinates as address
+        // city, state, zip, country are removed.
         joined_date: new Date().toISOString(),
         last_order_date: new Date().toISOString(), // Initial, will be updated
         total_spent: 0, // Initial, will be updated
@@ -90,9 +102,7 @@ export async function placeOrderAction(
   const detailedErrors: { storeId?: string; storeName?: string; message: string }[] = [];
   let successfullyProcessedTotalAmountAllStores = 0;
 
-  const shippingAddress = `${formData.streetAddress}, ${formData.city}, ${formData.stateProvince} ${formData.zipPostalCode}, ${formData.country}`;
-  const shippingLatitude = formData.latitude ? parseFloat(formData.latitude) : null;
-  const shippingLongitude = formData.longitude ? parseFloat(formData.longitude) : null;
+  const shippingAddress = `Coordinates: ${formData.location}`;
 
   // 2. Process orders for each store
   for (const [storeId, storeItems] of itemsByStore.entries()) {
@@ -135,9 +145,10 @@ export async function placeOrderAction(
       total_amount: currentStoreOrderTotal,
       status: 'Pending',
       shipping_address: shippingAddress,
-      billing_address: shippingAddress, // Assuming billing is same as shipping for now
-      shipping_latitude: Number.isNaN(shippingLatitude) ? null : shippingLatitude,
-      shipping_longitude: Number.isNaN(shippingLongitude) ? null : shippingLongitude,
+      billing_address: `Mobile Money: ${formData.mobileMoneyNumber}`, // Using billing address for payment info
+      shipping_latitude: latitude,
+      shipping_longitude: longitude,
+      payment_method: 'Mobile Money',
     };
 
     try {
@@ -183,6 +194,7 @@ export async function placeOrderAction(
         last_order_date: new Date().toISOString(),
         total_orders: existingCustomerTotalOrders + placedOrderIds.length,
         total_spent: existingCustomerTotalSpent + successfullyProcessedTotalAmountAllStores,
+        phone: formData.contactNumber, // ensure phone is updated
         // Name and address were updated earlier if existing, or set on creation
       };
       console.log(`[placeOrderAction] Updating customer ${customerIdToLink} stats:`, customerUpdateStats);
@@ -197,9 +209,11 @@ export async function placeOrderAction(
   
   // 4. Determine overall result
   if (placedOrderIds.length === 0) {
+    // If there are detailed errors, use those, otherwise provide a generic message.
+    const finalError = detailedErrors.length > 0 ? 'Could not place any orders. See details below.' : (placedOrderIds.length === 0 ? 'No orders were processed. Your cart has not been charged.' : 'An unknown error occurred.');
     return { 
       success: false, 
-      error: 'Could not place any orders. See details below.', 
+      error: finalError, 
       detailedErrors: detailedErrors.length > 0 ? detailedErrors : [{message: 'No orders were processed.'}] 
     };
   }

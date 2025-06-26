@@ -12,29 +12,22 @@ import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { OrderFormData, PlaceOrderResult } from '@/types'; // Updated PlaceOrderResult
+import type { OrderFormData, PlaceOrderResult } from '@/types';
 import { placeOrderAction } from './actions';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import Link from 'next/link'; // Keep Link import
+import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Info } from 'lucide-react';
-
+import { AlertCircle, Info, LocateFixed, Loader2 } from 'lucide-react';
 
 const checkoutFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
-  streetAddress: z.string().min(5, { message: "Street address is too short." }),
-  city: z.string().min(2, { message: "City name is too short." }),
-  stateProvince: z.string().min(2, { message: "State/Province is too short." }),
-  zipPostalCode: z.string().min(3, { message: "ZIP/Postal code is too short." }),
-  country: z.string().min(2, { message: "Country name is too short." }),
-  latitude: z.string().optional().refine(val => !val || /^-?([1-8]?[0-9]|[1-9]0)\.{1}\d{1,6}$/.test(val) || /^-?([1-8]?[0-9]|[1-9]0)$/.test(val), {
-    message: "Invalid latitude format."
+  contactNumber: z.string().min(10, { message: "A valid contact number is required (e.g. 10 digits)." }),
+  location: z.string().min(10, { message: "Please provide location coordinates or use current location." }).refine(val => /^-?\d{1,3}(\.\d+)?,\s*-?\d{1,3}(\.\d+)?$/.test(val.trim()), {
+    message: "Invalid format. Please use 'latitude, longitude'."
   }),
-  longitude: z.string().optional().refine(val => !val || /^-?((1[0-7]|[1-9])?[0-9]|180)\.{1}\d{1,6}$/.test(val) || /^-?((1[0-7]|[1-9])?[0-9]|180)$/.test(val), {
-    message: "Invalid longitude format."
-  }),
+  mobileMoneyNumber: z.string().min(9, { message: "A valid mobile money number is required." }),
 });
 
 export default function CheckoutPage() {
@@ -44,11 +37,12 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [submissionErrors, setSubmissionErrors] = useState<{ storeId?: string; storeName?: string; message: string }[] | null>(null);
-
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
-    if (cartItems.length === 0 && isClient) { 
+    if (cartItems.length === 0 && isClient) {
       toast({
         title: "Your cart is empty",
         description: "Please add items to your cart before proceeding to checkout.",
@@ -58,40 +52,76 @@ export default function CheckoutPage() {
     }
   }, [cartItems, router, toast, isClient]);
 
-
-  const { register, handleSubmit, formState: { errors } } = useForm<OrderFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue } = useForm<OrderFormData>({
     resolver: zodResolver(checkoutFormSchema),
   });
+  
+  const handleGetCurrentLocation = () => {
+    setIsLocating(true);
+    setLocationError(null);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setValue('location', `${latitude}, ${longitude}`, { shouldValidate: true });
+          setIsLocating(false);
+          toast({
+            title: "Location Found!",
+            description: "Your current location has been filled in."
+          });
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          const errorMessage = `Error: ${error.message}. Please paste coordinates manually.`;
+          setLocationError(errorMessage);
+          setIsLocating(false);
+          toast({
+            title: "Location Error",
+            description: `Could not get your location. Please ensure you have granted permission in your browser.`,
+            variant: "destructive",
+          });
+        }
+      );
+    } else {
+      const errorMessage = "Geolocation is not supported by this browser.";
+      setLocationError(errorMessage);
+      setIsLocating(false);
+       toast({
+        title: "Location Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
+
 
   const onSubmit: SubmitHandler<OrderFormData> = async (data) => {
     setIsSubmitting(true);
     setSubmissionErrors(null);
     try {
-      // totalAmount is no longer passed to placeOrderAction
-      const result: PlaceOrderResult = await placeOrderAction(data, cartItems); 
-      
+      const result: PlaceOrderResult = await placeOrderAction(data, cartItems);
+
       if (result.success && result.orderIds && result.orderIds.length > 0) {
         toast({
           title: "Order(s) Placed!",
           description: `Successfully placed ${result.orderIds.length} order(s). IDs: ${result.orderIds.join(', ')}. ${result.message || ''}`,
         });
         if (!result.detailedErrors || result.detailedErrors.length === 0) {
-            clearCart(); // Only clear cart if no partial failures
-            router.push('/'); 
+          clearCart(); // Only clear cart if no partial failures
+          router.push(`/track-order?search=${result.orderIds[0]}`); // Redirect to track the first new order
         } else {
-            setSubmissionErrors(result.detailedErrors);
+          setSubmissionErrors(result.detailedErrors);
         }
       } else {
-        // Overall failure or no orders placed
         toast({
           title: "Order Failed",
           description: result.error || "Could not place your order(s). Please try again or check details below.",
           variant: "destructive",
         });
         if (result.detailedErrors && result.detailedErrors.length > 0) {
-            setSubmissionErrors(result.detailedErrors);
+          setSubmissionErrors(result.detailedErrors);
         } else if (result.error) {
-            setSubmissionErrors([{ message: result.error }]);
+          setSubmissionErrors([{ message: result.error }]);
         }
       }
     } catch (error) {
@@ -101,7 +131,7 @@ export default function CheckoutPage() {
         description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
-       setSubmissionErrors([{ message: "An unexpected client-side error occurred." }]);
+      setSubmissionErrors([{ message: "An unexpected client-side error occurred." }]);
     } finally {
       setIsSubmitting(false);
     }
@@ -118,7 +148,7 @@ export default function CheckoutPage() {
   return (
     <div className="space-y-8">
       <h1 className="text-3xl md:text-4xl font-bold text-foreground">Checkout</h1>
-      
+
       {submissionErrors && submissionErrors.length > 0 && (
         <Alert variant="destructive" className="shadow-md">
           <AlertCircle className="h-5 w-5" />
@@ -146,14 +176,14 @@ export default function CheckoutPage() {
               {cartItems.map(item => (
                 <div key={item.id} className="flex justify-between items-start text-sm py-2 border-b last:border-b-0">
                   <div className="flex items-center gap-3 flex-grow">
-                     <Image 
-                        src={item.imageUrls[0]} 
-                        alt={item.name} 
-                        width={40} 
-                        height={40} 
-                        className="rounded aspect-square object-cover border"
-                        data-ai-hint="cart item"
-                      />
+                    <Image
+                      src={item.imageUrls[0]}
+                      alt={item.name}
+                      width={40}
+                      height={40}
+                      className="rounded aspect-square object-cover border"
+                      data-ai-hint="cart item"
+                    />
                     <div className="flex-grow">
                       <p className="font-medium">{item.name} (x{item.quantity})</p>
                       <p className="text-xs text-muted-foreground">${item.price.toFixed(2)} each</p>
@@ -174,11 +204,11 @@ export default function CheckoutPage() {
           </Card>
         </div>
 
-        {/* Shipping Details Form Column */}
+        {/* Delivery Details Form Column */}
         <div className="lg:col-span-2 lg:order-first">
           <Card className="shadow-xl">
             <CardHeader>
-              <CardTitle className="text-2xl">Shipping Details</CardTitle>
+              <CardTitle className="text-2xl">Delivery Details</CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -193,52 +223,47 @@ export default function CheckoutPage() {
                   {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
                 </div>
                 <div>
-                  <Label htmlFor="streetAddress">Street Address</Label>
-                  <Input id="streetAddress" {...register("streetAddress")} className="mt-1" />
-                  {errors.streetAddress && <p className="text-sm text-destructive mt-1">{errors.streetAddress.message}</p>}
+                  <Label htmlFor="contactNumber">Contact Number</Label>
+                  <Input id="contactNumber" type="tel" {...register("contactNumber")} className="mt-1" />
+                  {errors.contactNumber && <p className="text-sm text-destructive mt-1">{errors.contactNumber.message}</p>}
                 </div>
-                <div className="grid sm:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="city">City</Label>
-                    <Input id="city" {...register("city")} className="mt-1" />
-                    {errors.city && <p className="text-sm text-destructive mt-1">{errors.city.message}</p>}
-                  </div>
-                  <div>
-                    <Label htmlFor="stateProvince">State / Province</Label>
-                    <Input id="stateProvince" {...register("stateProvince")} className="mt-1" />
-                    {errors.stateProvince && <p className="text-sm text-destructive mt-1">{errors.stateProvince.message}</p>}
-                  </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="location">Delivery Location</Label>
+                   <div className="flex items-center gap-2">
+                     <Input id="location" {...register("location")} placeholder="e.g., 1.28692, 103.85457" className="mt-1" />
+                     <Button type="button" variant="outline" size="icon" onClick={handleGetCurrentLocation} disabled={isLocating}>
+                       {isLocating ? <Loader2 className="animate-spin"/> : <LocateFixed />}
+                       <span className="sr-only">Use Current Location</span>
+                     </Button>
+                   </div>
+                  {errors.location && <p className="text-sm text-destructive mt-1">{errors.location.message}</p>}
+                  {locationError && <p className="text-sm text-destructive mt-1">{locationError}</p>}
+                   <p className="text-xs text-muted-foreground">
+                    Click the button to use your current location, or paste coordinates from Google/Apple Maps.
+                  </p>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="zipPostalCode">ZIP / Postal Code</Label>
-                    <Input id="zipPostalCode" {...register("zipPostalCode")} className="mt-1" />
-                    {errors.zipPostalCode && <p className="text-sm text-destructive mt-1">{errors.zipPostalCode.message}</p>}
-                  </div>
-                  <div>
-                    <Label htmlFor="country">Country</Label>
-                    <Input id="country" {...register("country")} className="mt-1" />
-                    {errors.country && <p className="text-sm text-destructive mt-1">{errors.country.message}</p>}
-                  </div>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                   <Label htmlFor="mobileMoneyNumber">Mobile Money Number</Label>
+                    <Input id="mobileMoneyNumber" type="tel" {...register("mobileMoneyNumber")} placeholder="e.g., 2567..." className="mt-1" />
+                    {errors.mobileMoneyNumber && <p className="text-sm text-destructive mt-1">{errors.mobileMoneyNumber.message}</p>}
+                     <p className="text-xs text-muted-foreground">
+                      Payment will be simulated. Enter the number for your Mobile Money payment.
+                    </p>
                 </div>
-                 <div className="grid sm:grid-cols-2 gap-6">
-                  <div>
-                    <Label htmlFor="latitude">Latitude (Optional)</Label>
-                    <Input id="latitude" {...register("latitude")} className="mt-1" placeholder="e.g., 34.0522" />
-                    {errors.latitude && <p className="text-sm text-destructive mt-1">{errors.latitude.message}</p>}
-                  </div>
-                  <div>
-                    <Label htmlFor="longitude">Longitude (Optional)</Label>
-                    <Input id="longitude" {...register("longitude")} className="mt-1" placeholder="e.g., -118.2437"/>
-                    {errors.longitude && <p className="text-sm text-destructive mt-1">{errors.longitude.message}</p>}
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  For precise delivery, you can provide coordinates. A map-based picker will be added in the future.
-                </p>
+
+
                 <CardFooter className="p-0 pt-4">
-                  <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-                    {isSubmitting ? 'Placing Order(s)...' : 'Place Order(s) & Simulate Payment'}
+                  <Button type="submit" size="lg" className="w-full" disabled={isSubmitting || isLocating}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 animate-spin" />
+                        Placing Order(s)...
+                      </>
+                    ) : 'Place Order(s) & Simulate Payment'}
                   </Button>
                 </CardFooter>
               </form>

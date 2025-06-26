@@ -37,13 +37,9 @@ export interface CartItem extends Product {
 export interface OrderFormData {
   name: string;
   email: string;
-  streetAddress: string;
-  city: string;
-  stateProvince: string;
-  zipPostalCode: string;
-  country: string;
-  latitude?: string;
-  longitude?: string;
+  contactNumber: string;
+  location: string; // Will hold coordinates like "lat, lng"
+  mobileMoneyNumber: string;
 }
 
 export interface CreateOrderInput {
