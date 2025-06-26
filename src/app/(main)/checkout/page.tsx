@@ -18,6 +18,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertCircle, Info, LocateFixed, Loader2 } from 'lucide-react';
 
 const checkoutFormSchema = z.object({
@@ -229,19 +230,38 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="location">Delivery Location</Label>
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="location">Delivery Location</Label>
+                    <Button type="button" variant="outline" size="sm" onClick={handleGetCurrentLocation} disabled={isLocating} className="h-8">
+                       {isLocating ? <Loader2 className="animate-spin mr-1"/> : <LocateFixed className="mr-1" />}
+                       Use Current Location
+                     </Button>
+                  </div>
                    <div className="flex items-center gap-2">
                      <Input id="location" {...register("location")} placeholder="e.g., 1.28692, 103.85457" className="mt-1" />
-                     <Button type="button" variant="outline" size="icon" onClick={handleGetCurrentLocation} disabled={isLocating}>
-                       {isLocating ? <Loader2 className="animate-spin"/> : <LocateFixed />}
-                       <span className="sr-only">Use Current Location</span>
-                     </Button>
                    </div>
                   {errors.location && <p className="text-sm text-destructive mt-1">{errors.location.message}</p>}
                   {locationError && <p className="text-sm text-destructive mt-1">{locationError}</p>}
-                   <p className="text-xs text-muted-foreground">
-                    Click the button to use your current location, or paste coordinates from Google/Apple Maps.
-                  </p>
+                  <Accordion type="single" collapsible className="w-full text-sm">
+                    <AccordionItem value="item-1">
+                      <AccordionTrigger className="py-2 text-muted-foreground hover:no-underline text-xs">How to get coordinates from Google Maps</AccordionTrigger>
+                      <AccordionContent className="text-xs text-muted-foreground space-y-1 pl-4">
+                        <p>1. Open Google Maps and find your location.</p>
+                        <p>2. Right-click (or long-press on mobile) on the location.</p>
+                        <p>3. The coordinates will appear. Click them to copy.</p>
+                        <p>4. Paste into the input field above.</p>
+                      </AccordionContent>
+                    </AccordionItem>
+                    <AccordionItem value="item-2" className="border-b-0">
+                      <AccordionTrigger className="py-2 text-muted-foreground hover:no-underline text-xs">How to get coordinates from Apple Maps</AccordionTrigger>
+                      <AccordionContent className="text-xs text-muted-foreground space-y-1 pl-4">
+                        <p>1. Open Apple Maps and drop a pin on your location.</p>
+                        <p>2. Scroll down in the location card to find coordinates.</p>
+                        <p>3. Long-press the coordinates and select "Copy".</p>
+                        <p>4. Paste into the input field above.</p>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </div>
                 
                 <Separator />
