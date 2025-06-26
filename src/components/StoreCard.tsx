@@ -23,7 +23,7 @@ const StoreCard = ({ store }: StoreCardProps) => {
             className="rounded-md aspect-square object-contain border" /* Added border for white logos on white cards */
             data-ai-hint="store logo"
           />
-          <CardTitle className="text-xl font-semibold hover:text-primary transition-colors">{store.name}</CardTitle>
+          <CardTitle className="text-xl font-semibold hover:text-primary transition-colors break-words">{store.name}</CardTitle>
         </CardHeader>
       </Link>
       <CardContent className="p-4 pt-0 flex-grow">

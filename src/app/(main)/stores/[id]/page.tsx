@@ -60,7 +60,7 @@ export default async function StoreDetailsPage({ params }: StoreDetailsPageProps
               data-ai-hint="store logo detail"
             />
             <div className="flex-1">
-              <CardTitle className="text-3xl md:text-4xl font-bold text-primary">{store.name}</CardTitle>
+              <CardTitle className="text-3xl md:text-4xl font-bold text-primary break-words">{store.name}</CardTitle>
               <CardDescription className="text-lg text-foreground/80 mt-2">{store.description}</CardDescription>
               
               <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 items-center">

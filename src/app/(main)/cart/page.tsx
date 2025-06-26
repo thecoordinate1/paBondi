@@ -45,7 +45,7 @@ export default function CartPage() {
               </Link>
               <div className="flex-grow text-center sm:text-left">
                 <Link href={`/products/${item.id}`} className="block">
-                  <h2 className="text-lg font-semibold hover:text-primary transition-colors">{item.name}</h2>
+                  <h2 className="text-lg font-semibold hover:text-primary transition-colors break-words">{item.name}</h2>
                 </Link>
                 <p className="text-sm text-muted-foreground">Price: ${item.price.toFixed(2)}</p>
                  <Link href={`/stores/${item.storeId}`} className="text-xs text-muted-foreground hover:underline">

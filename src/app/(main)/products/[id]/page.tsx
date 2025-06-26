@@ -103,7 +103,7 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
 
           <div className="p-6 md:p-8">
             <CardHeader className="p-0 mb-2">
-              <CardTitle className="text-3xl md:text-4xl font-bold text-primary">{product.name}</CardTitle>
+              <CardTitle className="text-3xl md:text-4xl font-bold text-primary break-words">{product.name}</CardTitle>
               {store && (
                 <Link href={`/stores/${store.id}`} className="text-md text-muted-foreground hover:text-primary transition-colors flex items-center mt-1">
                   <StoreIcon size={16} className="mr-2" /> Sold by {store.name}

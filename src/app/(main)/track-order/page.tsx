@@ -25,7 +25,7 @@ const OrderItemCard = ({ item }: { item: AppOrderItem }) => (
       data-ai-hint="order item product"
     />
     <div className="flex-grow">
-      <h4 className="font-semibold">{item.name}</h4>
+      <h4 className="font-semibold break-words">{item.name}</h4>
       <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
       <p className="text-sm text-muted-foreground">
         Price: ${item.pricePerUnit.toFixed(2)} each
@@ -61,7 +61,7 @@ const DisplayOrderCard = ({ order }: { order: AppOrder }) => (
           </CardHeader>
           <CardContent className="text-sm space-y-1">
             <p><strong>Name:</strong> {order.customerName}</p>
-            <p><strong>Email:</strong> {order.customerEmail}</p>
+            <p><strong>Email:</strong> <span className="break-all">{order.customerEmail}</span></p>
           </CardContent>
         </Card>
         <Card className="shadow-md">

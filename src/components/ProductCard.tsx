@@ -43,7 +43,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
       </Link>
       <CardContent className="p-4 flex-grow">
         <Link href={`/products/${product.id}`} className="block">
-          <CardTitle className="text-lg font-semibold mb-1 hover:text-primary transition-colors">{product.name}</CardTitle>
+          <CardTitle className="text-lg font-semibold mb-1 hover:text-primary transition-colors break-words">{product.name}</CardTitle>
         </Link>
         <CardDescription className="text-sm text-muted-foreground mb-1">
           <Link href={`/stores/${product.storeId}`} className="hover:underline">
