@@ -103,17 +103,29 @@ export default function CheckoutPage() {
       const result: PlaceOrderResult = await placeOrderAction(data, cartItems);
 
       if (result.success && result.orderIds && result.orderIds.length > 0) {
-        toast({
-          title: "Order(s) Placed!",
-          description: `Successfully placed ${result.orderIds.length} order(s). IDs: ${result.orderIds.join(', ')}. ${result.message || ''}`,
-        });
+        // This is the important part:
+        // Only redirect and clear cart if there are NO detailed errors.
+        // If some stores succeeded and others failed, we keep the user on the page to see the errors.
         if (!result.detailedErrors || result.detailedErrors.length === 0) {
-          clearCart(); // Only clear cart if no partial failures
-          router.push(`/track-order?search=${result.orderIds[0]}`); // Redirect to track the first new order
+          toast({
+            title: "Order Placed!",
+            description: `Redirecting to your order confirmation.`,
+          });
+          clearCart();
+          router.push(`/order-confirmation?orderIds=${result.orderIds.join(',')}`);
         } else {
+          // This case handles partial success (some orders placed, some failed)
+          toast({
+            title: "Partial Order Failure",
+            description: `Successfully placed ${result.orderIds.length} order(s), but some items had issues. See details below.`,
+            variant: "default", // not destructive, as some succeeded.
+          });
           setSubmissionErrors(result.detailedErrors);
+          // NOTE: A more advanced implementation would remove only the successful items from the cart.
+          // For now, we leave the cart as-is so the user can see what failed and retry.
         }
       } else {
+        // This case handles total failure (no orders placed)
         toast({
           title: "Order Failed",
           description: result.error || "Could not place your order(s). Please try again or check details below.",
