@@ -246,7 +246,7 @@ export default function CheckoutPage() {
                     <AccordionItem value="item-1">
                       <AccordionTrigger className="py-2 text-muted-foreground hover:no-underline text-xs">How to get coordinates from Google Maps</AccordionTrigger>
                       <AccordionContent className="text-xs text-muted-foreground space-y-1 pl-4">
-                        <p>1. Open Google Maps and find your location.</p>
+                        <p>1. <a href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Open Google Maps</a> and find your location.</p>
                         <p>2. Right-click (or long-press on mobile) on the location.</p>
                         <p>3. The coordinates will appear. Click them to copy.</p>
                         <p>4. Paste into the input field above.</p>
@@ -255,7 +255,7 @@ export default function CheckoutPage() {
                     <AccordionItem value="item-2" className="border-b-0">
                       <AccordionTrigger className="py-2 text-muted-foreground hover:no-underline text-xs">How to get coordinates from Apple Maps</AccordionTrigger>
                       <AccordionContent className="text-xs text-muted-foreground space-y-1 pl-4">
-                        <p>1. Open Apple Maps and drop a pin on your location.</p>
+                        <p>1. <a href="https://maps.apple.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Open Apple Maps</a> and drop a pin on your location.</p>
                         <p>2. Scroll down in the location card to find coordinates.</p>
                         <p>3. Long-press the coordinates and select "Copy".</p>
                         <p>4. Paste into the input field above.</p>
