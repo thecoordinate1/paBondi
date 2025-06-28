@@ -24,7 +24,7 @@ import { AlertCircle, Info, LocateFixed, Loader2 } from 'lucide-react';
 const checkoutFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
-  contactNumber: z.string().min(10, { message: "A valid contact number is required (e.g. 10 digits)." }),
+  contactNumber: z.string().min(10, { message: "A valid contact number is required (e.g 077/076/075-xxxxxxx)" }),
   location: z.string().min(10, { message: "Please provide location coordinates or use current location." }).refine(val => /^-?\d{1,3}(\.\d+)?,\s*-?\d{1,3}(\.\d+)?$/.test(val.trim()), {
     message: "Invalid format. Please use 'latitude, longitude'."
   }),
