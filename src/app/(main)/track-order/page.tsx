@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -96,7 +95,14 @@ const DisplayOrderCard = ({ order }: { order: AppOrder }) => (
         <div>
           {order.shippingMethod && <p><Truck size={16} className="inline mr-2 text-muted-foreground"/><strong>Shipping Method:</strong> {order.shippingMethod}</p>}
           {order.paymentMethod && <p><CreditCard size={16} className="inline mr-2 text-muted-foreground"/><strong>Payment Method:</strong> {order.paymentMethod} (Simulated)</p>}
-          {order.trackingNumber && <p><PackageSearch size={16} className="inline mr-2 text-muted-foreground"/><strong>Tracking #:</strong> {order.trackingNumber}</p>}
+          {order.trackingNumber && (
+            <p>
+              <PackageSearch size={16} className="inline mr-2 text-muted-foreground"/>
+              <strong>
+                {order.status.toLowerCase() === 'delivering' ? 'Delivery Code:' : 'Tracking #:'}
+              </strong> {order.trackingNumber}
+            </p>
+          )}
         </div>
         <div className="sm:text-right">
           <p className="text-lg font-semibold">Order Total: <span className="text-primary">${order.totalAmount.toFixed(2)}</span></p>
