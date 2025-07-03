@@ -11,14 +11,75 @@ import {
   findCustomerByEmail,
   createCustomer,
   updateCustomer,
-  getStoreById, // Import getStoreById
+  getStoreById,
 } from '@/lib/data';
-import type { CartItem, OrderFormData, CreateOrderInput, CreateOrderItemInput, CreateCustomerInput, UpdateCustomerInput, PlaceOrderResult } from '@/types';
+import type { CartItem, OrderFormData, CreateOrderInput, CreateOrderItemInput, CreateCustomerInput, UpdateCustomerInput, PlaceOrderResult, DeliveryFeeResult, Store } from '@/types';
+import { getDeliveryFeeForStore } from '@/lib/delivery';
+
+export async function calculateDeliveryFeeAction(
+  userLocation: string, 
+  cartItems: CartItem[]
+): Promise<DeliveryFeeResult> {
+  if (!userLocation) {
+    return { success: false, error: 'User location is required.' };
+  }
+  if (!cartItems || cartItems.length === 0) {
+    return { success: false, error: 'Cart is empty.' };
+  }
+
+  let userCoords;
+  try {
+    const coords = userLocation.split(',').map(s => s.trim());
+    if (coords.length !== 2) throw new Error("Invalid coordinate format.");
+    const latitude = parseFloat(coords[0]);
+    const longitude = parseFloat(coords[1]);
+    if (isNaN(latitude) || isNaN(longitude)) throw new Error("Coordinates are not valid numbers.");
+    userCoords = { latitude, longitude };
+  } catch (e) {
+      return { success: false, error: 'Invalid user location coordinates format.' };
+  }
+  
+  const cookieStore = cookies();
+  const supabase = createSupabaseClient(cookieStore);
+
+  const uniqueStoreIds = [...new Set(cartItems.map(item => item.storeId))];
+  let totalDeliveryFee = 0;
+  const feesByStore: Record<string, number> = {};
+
+  try {
+    const storePromises = uniqueStoreIds.map(id => getStoreById(supabase, id));
+    const stores = await Promise.all(storePromises);
+
+    for (const store of stores) {
+      if (!store) {
+        console.warn(`[calculateDeliveryFeeAction] Could not find a store for one of the items.`);
+        continue; // Or handle as an error
+      }
+      if (store.latitude && store.longitude) {
+        const fee = getDeliveryFeeForStore(userCoords, { latitude: store.latitude, longitude: store.longitude });
+        if (fee !== null) {
+          feesByStore[store.id] = fee;
+          totalDeliveryFee += fee;
+        } else {
+           console.warn(`[calculateDeliveryFeeAction] Could not calculate fee for store ${store.id}.`);
+        }
+      } else {
+        console.warn(`[calculateDeliveryFeeAction] Store ${store.name} (${store.id}) is missing coordinates. Cannot calculate fee.`);
+        // You might want to return an error here if every store must have a fee
+      }
+    }
+  } catch(error) {
+    console.error(`[calculateDeliveryFeeAction] Error fetching stores or calculating fees:`, error);
+    return { success: false, error: 'An error occurred while calculating delivery fees.' };
+  }
+
+  return { success: true, totalDeliveryFee, feesByStore };
+}
+
 
 export async function placeOrderAction(
   formData: OrderFormData,
   cartItems: CartItem[],
-  // totalAmount is no longer passed as it will be calculated per store
 ): Promise<PlaceOrderResult> {
   const cookieStore = cookies();
   const supabase = createSupabaseClient(cookieStore);
@@ -66,12 +127,9 @@ export async function placeOrderAction(
       customerIdToLink = existingCustomer.id;
       existingCustomerTotalOrders = existingCustomer.total_orders || 0;
       existingCustomerTotalSpent = existingCustomer.total_spent || 0;
-      // Update name/address immediately if changed from form, other stats later
       const customerPrimeUpdate: UpdateCustomerInput = {
         name: formData.name,
         phone: formData.contactNumber,
-        // Since we removed address fields, we clear them or handle them differently
-        // For now, we will not update address fields here.
       };
       await updateCustomer(supabase, customerIdToLink, customerPrimeUpdate);
 
@@ -82,12 +140,11 @@ export async function placeOrderAction(
         email: formData.email,
         phone: formData.contactNumber,
         status: 'active',
-        street_address: `Coordinates: ${formData.location}`, // Store coordinates as address
-        // city, state, zip, country are removed.
+        street_address: `Coordinates: ${formData.location}`,
         joined_date: new Date().toISOString(),
-        last_order_date: new Date().toISOString(), // Initial, will be updated
-        total_spent: 0, // Initial, will be updated
-        total_orders: 0, // Initial, will be updated
+        last_order_date: new Date().toISOString(),
+        total_spent: 0,
+        total_orders: 0,
       };
       const newCustomer = await createCustomer(supabase, newCustomerData);
       customerIdToLink = newCustomer.id;
@@ -106,10 +163,8 @@ export async function placeOrderAction(
 
   // 2. Process orders for each store
   for (const [storeId, storeItems] of itemsByStore.entries()) {
-    let storeName = storeItems[0]?.storeName || 'Unknown Store'; // Get store name from first item or default
     const store = await getStoreById(supabase, storeId);
-    if (store && store.name) storeName = store.name;
-
+    let storeName = store?.name || 'Unknown Store';
 
     // Stock validation for this store's items
     try {
@@ -119,7 +174,7 @@ export async function placeOrderAction(
           detailedErrors.push({ storeId, storeName, message: `Product ${item.name} not found.`});
           throw new Error(`Product ${item.name} from store ${storeName} not found, skipping order for this store.`);
         }
-        item.stockCount = currentStock; // Ensure cart item has up-to-date stock count
+        item.stockCount = currentStock; 
         if (item.stockCount < item.quantity) {
           detailedErrors.push({ storeId, storeName, message: `Not enough stock for ${item.name}. Only ${item.stockCount} available.`});
           throw new Error(`Not enough stock for ${item.name} from store ${storeName}, skipping order for this store.`);
@@ -127,14 +182,22 @@ export async function placeOrderAction(
       }
     } catch (stockValidationError) {
       console.warn(`[placeOrderAction] Stock validation failed for store ${storeName} (${storeId}):`, stockValidationError instanceof Error ? stockValidationError.message : stockValidationError);
-      // Detailed error already pushed if specific, or a general one if loop broken early
       if (!detailedErrors.find(de => de.storeId === storeId)) {
          detailedErrors.push({ storeId, storeName, message: stockValidationError instanceof Error ? stockValidationError.message : 'Stock validation failed.' });
       }
-      continue; // Skip to the next store
+      continue;
     }
     
-    const currentStoreOrderTotal = storeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    // Recalculate delivery fee on server for security
+    let deliveryFee = 0;
+    if (store && store.latitude && store.longitude) {
+      deliveryFee = getDeliveryFeeForStore({ latitude, longitude }, { latitude: store.latitude, longitude: store.longitude }) ?? 0;
+    } else {
+      console.warn(`[placeOrderAction] Store ${storeName} (${storeId}) is missing coordinates. Delivery fee set to 0.`);
+    }
+
+    const subtotal = storeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const finalTotalAmount = subtotal + deliveryFee;
 
     const orderInput: CreateOrderInput = {
       store_id: storeId,
@@ -142,10 +205,11 @@ export async function placeOrderAction(
       customer_name: formData.name,
       customer_email: formData.email,
       order_date: new Date().toISOString(),
-      total_amount: currentStoreOrderTotal,
+      total_amount: finalTotalAmount,
+      shipping_cost: deliveryFee,
       status: 'Pending',
       shipping_address: shippingAddress,
-      billing_address: `Mobile Money: ${formData.mobileMoneyNumber}`, // Using billing address for payment info
+      billing_address: `Mobile Money: ${formData.mobileMoneyNumber}`,
       shipping_latitude: latitude,
       shipping_longitude: longitude,
       payment_method: 'Mobile Money',
@@ -170,16 +234,13 @@ export async function placeOrderAction(
       await createOrderItems(supabase, orderItemsInput);
 
       for (const item of storeItems) {
-        // item.stockCount should be populated from the earlier check
         const newStockCount = (item.stockCount as number) - item.quantity;
         await updateProductStock(supabase, item.id, newStockCount);
       }
       
       placedOrderIds.push(orderId);
-      successfullyProcessedTotalAmountAllStores += currentStoreOrderTotal;
+      successfullyProcessedTotalAmountAllStores += finalTotalAmount;
       console.log(`[placeOrderAction] Order ${orderId} for store ${storeName} created successfully. Simulating delivery dispatch.`);
-      console.log(`[placeOrderAction] SIMULATION: Delivery dispatch for order ${orderId} (Store: ${storeName}) would be initiated here.`);
-      console.log(`[placeOrderAction] SIMULATION: Delivery address: ${shippingAddress}, Lat: ${orderInput.shipping_latitude}, Lng: ${orderInput.shipping_longitude}`);
 
     } catch (storeOrderError) {
       console.error(`[placeOrderAction] Error processing order for store ${storeName} (${storeId}):`, storeOrderError);
@@ -194,22 +255,19 @@ export async function placeOrderAction(
         last_order_date: new Date().toISOString(),
         total_orders: existingCustomerTotalOrders + placedOrderIds.length,
         total_spent: existingCustomerTotalSpent + successfullyProcessedTotalAmountAllStores,
-        phone: formData.contactNumber, // ensure phone is updated
-        // Name and address were updated earlier if existing, or set on creation
+        phone: formData.contactNumber,
       };
       console.log(`[placeOrderAction] Updating customer ${customerIdToLink} stats:`, customerUpdateStats);
       await updateCustomer(supabase, customerIdToLink, customerUpdateStats);
       console.log(`[placeOrderAction] Customer ${customerIdToLink} stats updated.`);
     } catch (customerUpdateError) {
         console.error(`[placeOrderAction] CRITICAL: Orders placed (${placedOrderIds.join(', ')}) but failed to update customer ${customerIdToLink} stats:`, customerUpdateError);
-        // Add to detailed errors, but orders are already placed.
         detailedErrors.push({ message: `Orders were placed, but there was an issue updating your customer profile statistics. Please contact support. Error: ${customerUpdateError instanceof Error ? customerUpdateError.message : "Unknown error"}`});
     }
   }
   
   // 4. Determine overall result
   if (placedOrderIds.length === 0) {
-    // If there are detailed errors, use those, otherwise provide a generic message.
     const finalError = detailedErrors.length > 0 ? 'Could not place any orders. See details below.' : (placedOrderIds.length === 0 ? 'No orders were processed. Your cart has not been charged.' : 'An unknown error occurred.');
     return { 
       success: false, 

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -34,93 +35,99 @@ const OrderItemCard = ({ item }: { item: AppOrderItem }) => (
   </div>
 );
 
-const DisplayOrderCard = ({ order }: { order: AppOrder }) => (
-  <Card className="shadow-xl overflow-hidden mt-6">
-    <CardHeader className="bg-muted/30 p-6">
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-        <div>
-          <CardTitle className="text-2xl md:text-3xl text-primary">Order Details</CardTitle>
-          <CardDescription className="flex items-center gap-1.5 mt-1">
-            <Hash size={14}/> ID: {order.id}
-          </CardDescription>
-        </div>
-        <div className="text-sm sm:text-right">
-          <p className="font-semibold text-lg">Status: <span className="text-primary">{order.status}</span></p>
-          <p className="text-muted-foreground flex items-center gap-1.5 justify-start sm:justify-end">
-            <CalendarDays size={14}/> Ordered on: {format(new Date(order.orderDate), "PPP p")}
-          </p>
-        </div>
-      </div>
-    </CardHeader>
-    <CardContent className="p-6 space-y-6">
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-2"><UserCircle size={22}/> Customer Information</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm space-y-1">
-            <p><strong>Name:</strong> {order.customerName}</p>
-            <p><strong>Email:</strong> <span className="break-all">{order.customerEmail}</span></p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="text-xl flex items-center gap-2"><MapPin size={22}/>Shipping Address</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm space-y-1">
-            <p>{order.shippingAddress}</p>
-            {order.shippingLatitude && order.shippingLongitude && (
-               <p className="text-xs text-muted-foreground">
-                 Coords: {order.shippingLatitude.toFixed(4)}, {order.shippingLongitude.toFixed(4)}
-               </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+const DisplayOrderCard = ({ order }: { order: AppOrder }) => {
+  const subtotal = order.items.reduce((acc, item) => acc + item.totalPrice, 0);
 
-      <div>
-        <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><ShoppingBag size={22}/>Items Ordered</h3>
-        <div className="space-y-3 divide-y divide-border rounded-md border bg-card p-4 shadow-inner">
-          {order.items.length > 0 ? (
-            order.items.map(item => <OrderItemCard key={item.id} item={item} />)
-          ) : (
-            <p className="text-muted-foreground py-4 text-center">No items found for this order.</p>
-          )}
-        </div>
-      </div>
-
-      <Separator />
-
-      <div className="grid sm:grid-cols-2 gap-4 text-sm">
-        <div>
-          {order.shippingMethod && <p><Truck size={16} className="inline mr-2 text-muted-foreground"/><strong>Shipping Method:</strong> {order.shippingMethod}</p>}
-          {order.paymentMethod && <p><CreditCard size={16} className="inline mr-2 text-muted-foreground"/><strong>Payment Method:</strong> {order.paymentMethod} (Simulated)</p>}
-          {order.trackingNumber && (
-            <p>
-              <PackageSearch size={16} className="inline mr-2 text-muted-foreground"/>
-              <strong>
-                {order.status.toLowerCase() === 'delivering' ? 'Delivery Code:' : 'Tracking #:'}
-              </strong> {order.trackingNumber}
+  return (
+    <Card className="shadow-xl overflow-hidden mt-6">
+      <CardHeader className="bg-muted/30 p-6">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+          <div>
+            <CardTitle className="text-2xl md:text-3xl text-primary">Order Details</CardTitle>
+            <CardDescription className="flex items-center gap-1.5 mt-1">
+              <Hash size={14}/> ID: {order.id}
+            </CardDescription>
+          </div>
+          <div className="text-sm sm:text-right">
+            <p className="font-semibold text-lg">Status: <span className="text-primary">{order.status}</span></p>
+            <p className="text-muted-foreground flex items-center gap-1.5 justify-start sm:justify-end">
+              <CalendarDays size={14}/> Ordered on: {format(new Date(order.orderDate), "PPP p")}
             </p>
-          )}
+          </div>
         </div>
-        <div className="sm:text-right">
-          <p className="text-lg font-semibold">Order Total: <span className="text-primary">${order.totalAmount.toFixed(2)}</span></p>
+      </CardHeader>
+      <CardContent className="p-6 space-y-6">
+        <div className="grid md:grid-cols-2 gap-6">
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2"><UserCircle size={22}/> Customer Information</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-1">
+              <p><strong>Name:</strong> {order.customerName}</p>
+              <p><strong>Email:</strong> <span className="break-all">{order.customerEmail}</span></p>
+            </CardContent>
+          </Card>
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2"><MapPin size={22}/>Shipping Address</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm space-y-1">
+              <p>{order.shippingAddress}</p>
+              {order.shippingLatitude && order.shippingLongitude && (
+                 <p className="text-xs text-muted-foreground">
+                   Coords: {order.shippingLatitude.toFixed(4)}, {order.shippingLongitude.toFixed(4)}
+                 </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
-      </div>
-    </CardContent>
-     <CardFooter className="bg-muted/20 p-4 text-center">
-       <p className="text-xs text-muted-foreground w-full">
-         If you have any questions about your order, please contact support with your Order ID.
-       </p>
-     </CardFooter>
-  </Card>
-);
+
+        <div>
+          <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><ShoppingBag size={22}/>Items Ordered</h3>
+          <div className="space-y-3 divide-y divide-border rounded-md border bg-card p-4 shadow-inner">
+            {order.items.length > 0 ? (
+              order.items.map(item => <OrderItemCard key={item.id} item={item} />)
+            ) : (
+              <p className="text-muted-foreground py-4 text-center">No items found for this order.</p>
+            )}
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="grid sm:grid-cols-2 gap-4 text-sm">
+          <div>
+            {order.shippingMethod && <p><Truck size={16} className="inline mr-2 text-muted-foreground"/><strong>Shipping Method:</strong> {order.shippingMethod}</p>}
+            {order.paymentMethod && <p><CreditCard size={16} className="inline mr-2 text-muted-foreground"/><strong>Payment Method:</strong> {order.paymentMethod} (Simulated)</p>}
+            {order.trackingNumber && (
+              <p>
+                <PackageSearch size={16} className="inline mr-2 text-muted-foreground"/>
+                <strong>
+                  {order.status.toLowerCase() === 'delivering' ? 'Delivery Code:' : 'Tracking #:'}
+                </strong> {order.trackingNumber}
+              </p>
+            )}
+          </div>
+          <div className="space-y-1 sm:text-right">
+             <p>Subtotal: <span className="font-medium">${subtotal.toFixed(2)}</span></p>
+             <p>Delivery Fee: <span className="font-medium">${(order.shippingCost || 0).toFixed(2)}</span></p>
+             <p className="text-lg font-semibold">Order Total: <span className="text-primary">${order.totalAmount.toFixed(2)}</span></p>
+          </div>
+        </div>
+      </CardContent>
+       <CardFooter className="bg-muted/20 p-4 text-center">
+         <p className="text-xs text-muted-foreground w-full">
+           If you have any questions about your order, please contact support with your Order ID.
+         </p>
+       </CardFooter>
+    </Card>
+  );
+};
 
 
 export default function TrackOrderPage() {
   const [searchInput, setSearchInput] = useState('');
-  const [orders, setOrders] = useState<AppOrder[] | null | undefined>(undefined); // Changed to AppOrder[]
+  const [orders, setOrders] = useState<AppOrder[] | null | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -139,9 +146,8 @@ export default function TrackOrderPage() {
     if (result.success && result.orders && result.orders.length > 0) {
       setOrders(result.orders);
     } else {
-      // This handles both failure from action OR success with empty orders array
       setError(result.error || `No orders found matching: ${searchInput.trim()}`);
-      setOrders([]); // Set to empty array to signify search was done but no results
+      setOrders([]);
     }
     setIsLoading(false);
   };
@@ -192,7 +198,6 @@ export default function TrackOrderPage() {
         </Alert>
       )}
 
-      {/* Show "No orders found" message if orders array is empty after a search */}
       {orders && orders.length === 0 && !isLoading && !error && ( 
         <Alert variant="default" className="shadow-md bg-card border-primary/20">
           <Info className="h-5 w-5 text-primary" />
@@ -203,7 +208,6 @@ export default function TrackOrderPage() {
         </Alert>
       )}
 
-      {/* Display orders if found */}
       {orders && orders.length > 0 && !isLoading && (
         <div className="space-y-6">
           {orders.map(order => (

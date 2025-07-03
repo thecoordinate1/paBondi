@@ -26,6 +26,8 @@ export interface Store {
   description: string;
   category?: string;
   location?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   socialLinks?: SocialLinkItem[];
   featured?: boolean;
 }
@@ -48,6 +50,7 @@ export interface CreateOrderInput {
   customer_email: string;
   order_date: string; // ISO string
   total_amount: number;
+  shipping_cost: number;
   status: string;
   shipping_address: string;
   billing_address: string;
@@ -87,6 +90,7 @@ export interface AppOrder {
   customerEmail: string;
   orderDate: string; // ISO string
   totalAmount: number;
+  shippingCost: number | null;
   status: string;
   shippingAddress: string;
   billingAddress: string;
@@ -151,4 +155,11 @@ export interface PlaceOrderResult {
   message?: string;
   error?: string; // General error if all fail before processing stores or critical customer error
   detailedErrors?: { storeId?: string; storeName?: string; message: string }[];
+}
+
+export interface DeliveryFeeResult {
+  success: boolean;
+  totalDeliveryFee?: number;
+  error?: string;
+  feesByStore?: Record<string, number>;
 }

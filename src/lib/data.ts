@@ -72,6 +72,8 @@ const mapSupabaseStoreToAppStore = (
     description: supabaseStore.description,
     category: supabaseStore.category,
     location: supabaseStore.location,
+    latitude: supabaseStore.latitude,
+    longitude: supabaseStore.longitude,
     socialLinks: socialLinks?.map(sl => ({ platform: sl.platform, url: sl.url })) || [],
   };
 };
@@ -437,7 +439,7 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
       return null;
     }
     console.error(`[getOrderDetailsById] Error fetching order ${orderId}:`, orderError);
-    throw new Error(`Failed to fetch order ${orderId}: ${error.message}`);
+    throw new Error(`Failed to fetch order ${orderId}: ${orderError.message}`);
   }
 
   if (!orderData) {
@@ -476,6 +478,7 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
     customerEmail: orderData.customer_email,
     orderDate: orderData.order_date,
     totalAmount: orderData.total_amount,
+    shippingCost: orderData.shipping_cost,
     status: orderData.status,
     shippingAddress: orderData.shipping_address,
     billingAddress: orderData.billing_address,
@@ -549,4 +552,3 @@ export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTer
   console.log(`[findOrdersBySearchTerm] No orders found matching term: ${searchTerm}`);
   return []; 
 }
-

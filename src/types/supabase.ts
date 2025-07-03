@@ -44,6 +44,8 @@ export interface Store {
   status: string; // TEXT, NOT NULL (e.g., "active", "pending", "archived")
   category: string; // TEXT, NOT NULL
   location: string | null; // TEXT
+  latitude: number | null;
+  longitude: number | null;
   created_at: string; // TIMESTAMPTZ
   updated_at: string; // TIMESTAMPTZ
 }
@@ -130,12 +132,15 @@ export interface Order {
   customer_email: string; // TEXT, NOT NULL
   order_date: string; // TIMESTAMPTZ, NOT NULL
   total_amount: number; // DECIMAL, NOT NULL
+  shipping_cost: number | null;
   status: string; // TEXT, NOT NULL (e.g., "Pending", "Order Confirmed", "Driver Picking Up", "Delivering", "Delivered", "Cancelled")
   shipping_address: string; // TEXT, NOT NULL
   billing_address: string; // TEXT, NOT NULL
   shipping_method: string | null; // TEXT
   payment_method: string | null; // TEXT
   tracking_number: string | null; // TEXT
+  shipping_latitude: number | null;
+  shipping_longitude: number | null;
   created_at: string; // TIMESTAMPTZ
   updated_at: string; // TIMESTAMPTZ
 }

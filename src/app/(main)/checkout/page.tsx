@@ -13,8 +13,8 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { OrderFormData, PlaceOrderResult } from '@/types';
-import { placeOrderAction } from './actions';
-import { useState, useEffect } from 'react';
+import { placeOrderAction, calculateDeliveryFeeAction } from './actions';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -38,6 +38,11 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [submissionErrors, setSubmissionErrors] = useState<{ storeId?: string; storeName?: string; message: string }[] | null>(null);
+  
+  const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
+  const [isCalculatingFee, setIsCalculatingFee] = useState(false);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
+
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
@@ -53,10 +58,46 @@ export default function CheckoutPage() {
     }
   }, [cartItems, router, toast, isClient]);
 
-  const { register, handleSubmit, formState: { errors }, setValue } = useForm<OrderFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<OrderFormData>({
     resolver: zodResolver(checkoutFormSchema),
   });
   
+  const userLocation = watch('location');
+
+  const handleCalculateFee = useCallback(async (location: string) => {
+    if (cartItems.length === 0) return;
+    setIsCalculatingFee(true);
+    setCalculationError(null);
+    setDeliveryFee(null);
+    try {
+        const result = await calculateDeliveryFeeAction(location, cartItems);
+        if (result.success && result.totalDeliveryFee !== undefined) {
+            setDeliveryFee(result.totalDeliveryFee);
+        } else {
+            setCalculationError(result.error || "Could not calculate delivery fee. Please ensure store information is complete.");
+            setDeliveryFee(null);
+        }
+    } catch (e) {
+        setCalculationError("An error occurred while calculating the fee.");
+        setDeliveryFee(null);
+    } finally {
+        setIsCalculatingFee(false);
+    }
+  }, [cartItems]);
+
+  useEffect(() => {
+    const isLocationValid = checkoutFormSchema.shape.location.safeParse(userLocation).success;
+    if (isLocationValid) {
+        const handler = setTimeout(() => {
+            handleCalculateFee(userLocation);
+        }, 500); // Debounce for 500ms
+        return () => clearTimeout(handler);
+    } else {
+        setDeliveryFee(null);
+        setCalculationError(null);
+    }
+  }, [userLocation, handleCalculateFee]);
+
   const handleGetCurrentLocation = () => {
     setIsLocating(true);
     setLocationError(null);
@@ -95,17 +136,20 @@ export default function CheckoutPage() {
     }
   };
 
-
   const onSubmit: SubmitHandler<OrderFormData> = async (data) => {
+    if (deliveryFee === null) {
+      toast({
+        title: "Delivery Fee Missing",
+        description: "Please provide a valid location to calculate the delivery fee before placing an order.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsSubmitting(true);
     setSubmissionErrors(null);
     try {
       const result: PlaceOrderResult = await placeOrderAction(data, cartItems);
-
       if (result.success && result.orderIds && result.orderIds.length > 0) {
-        // This is the important part:
-        // Only redirect and clear cart if there are NO detailed errors.
-        // If some stores succeeded and others failed, we keep the user on the page to see the errors.
         if (!result.detailedErrors || result.detailedErrors.length === 0) {
           toast({
             title: "Order Placed!",
@@ -114,18 +158,14 @@ export default function CheckoutPage() {
           clearCart();
           router.push(`/order-confirmation?orderIds=${result.orderIds.join(',')}`);
         } else {
-          // This case handles partial success (some orders placed, some failed)
           toast({
             title: "Partial Order Failure",
             description: `Successfully placed ${result.orderIds.length} order(s), but some items had issues. See details below.`,
-            variant: "default", // not destructive, as some succeeded.
+            variant: "default",
           });
           setSubmissionErrors(result.detailedErrors);
-          // NOTE: A more advanced implementation would remove only the successful items from the cart.
-          // For now, we leave the cart as-is so the user can see what failed and retry.
         }
       } else {
-        // This case handles total failure (no orders placed)
         toast({
           title: "Order Failed",
           description: result.error || "Could not place your order(s). Please try again or check details below.",
@@ -157,6 +197,9 @@ export default function CheckoutPage() {
       </div>
     );
   }
+
+  const subTotal = getCartTotal();
+  const finalTotal = subTotal + (deliveryFee || 0);
 
   return (
     <div className="space-y-8">
@@ -209,9 +252,24 @@ export default function CheckoutPage() {
                 </div>
               ))}
               <Separator />
-              <div className="flex justify-between font-semibold text-lg pt-2">
+               <div className="flex justify-between text-sm">
+                <p>Subtotal</p>
+                <p>${subTotal.toFixed(2)}</p>
+              </div>
+              <div className="flex justify-between text-sm">
+                <p>Delivery Fee</p>
+                {isCalculatingFee 
+                  ? <Loader2 className="animate-spin h-4 w-4 text-muted-foreground" />
+                  : deliveryFee !== null 
+                    ? <p>${deliveryFee.toFixed(2)}</p> 
+                    : <p className="text-muted-foreground">$--.--</p>
+                }
+              </div>
+              {calculationError && <p className="text-xs text-destructive text-right">{calculationError}</p>}
+              <Separator />
+              <div className="flex justify-between font-bold text-lg pt-2">
                 <p>Total</p>
-                <p>${getCartTotal().toFixed(2)}</p>
+                <p>${finalTotal.toFixed(2)}</p>
               </div>
             </CardContent>
           </Card>
@@ -289,7 +347,7 @@ export default function CheckoutPage() {
 
 
                 <CardFooter className="p-0 pt-4">
-                  <Button type="submit" size="lg" className="w-full" disabled={isSubmitting || isLocating}>
+                  <Button type="submit" size="lg" className="w-full" disabled={isSubmitting || isLocating || isCalculatingFee || deliveryFee === null}>
                     {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 animate-spin" />
