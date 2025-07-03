@@ -14,7 +14,53 @@ import {
   getStoreById,
 } from '@/lib/data';
 import type { CartItem, OrderFormData, CreateOrderInput, CreateOrderItemInput, CreateCustomerInput, UpdateCustomerInput, PlaceOrderResult, DeliveryCostResult, GeocodeResult, Store } from '@/types';
-import { getDeliveryCostForStore } from '@/lib/delivery';
+import { calculateDeliveryCost } from '@/lib/delivery';
+
+// Helper function to get driving distance from ORS
+async function getStreetDistance(
+  userCoords: { latitude: number; longitude: number },
+  storeCoords: { latitude: number; longitude: number }
+): Promise<number | null> {
+  const apiKey = process.env.OPEN_ROUTE_SERVICE_API_KEY;
+  if (!apiKey || apiKey === 'YOUR_ORS_API_KEY_HERE') {
+    console.error('[getStreetDistance] OpenRouteService API key is not set or is a placeholder.');
+    return null;
+  }
+
+  // ORS API expects longitude,latitude format
+  const start = `${storeCoords.longitude},${storeCoords.latitude}`;
+  const end = `${userCoords.longitude},${userCoords.latitude}`;
+  const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${start}&end=${end}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[getStreetDistance] ORS Directions API error: ${response.status} ${errorText}`);
+      return null;
+    }
+
+    const data = await response.json();
+    // The distance is in the summary of the first route, in meters.
+    const distanceInMeters = data.features?.[0]?.properties?.summary?.distance;
+
+    if (typeof distanceInMeters === 'number') {
+      return distanceInMeters / 1000; // Convert to KM
+    } else {
+      console.warn('[getStreetDistance] Could not extract distance from ORS response:', JSON.stringify(data));
+      return null;
+    }
+  } catch (error) {
+    console.error('[getStreetDistance] Fetch error:', error);
+    return null;
+  }
+}
+
 
 export async function reverseGeocodeAction(latitude: number, longitude: number): Promise<GeocodeResult> {
   const apiKey = process.env.OPEN_ROUTE_SERVICE_API_KEY;
@@ -103,16 +149,19 @@ export async function calculateDeliveryCostAction(
         continue; // Or handle as an error
       }
       if (store.latitude && store.longitude) {
-        const cost = getDeliveryCostForStore(userCoords, { latitude: store.latitude, longitude: store.longitude });
-        if (cost !== null) {
+        const distanceInKm = await getStreetDistance(userCoords, { latitude: store.latitude, longitude: store.longitude });
+        
+        if (distanceInKm !== null) {
+          const cost = calculateDeliveryCost(distanceInKm);
           costsByStore[store.id] = cost;
           totalDeliveryCost += cost;
         } else {
-           console.warn(`[calculateDeliveryCostAction] Could not calculate cost for store ${store.id}.`);
+           console.warn(`[calculateDeliveryCostAction] Could not calculate street distance for store ${store.id}.`);
+           return { success: false, error: `Could not calculate delivery route for store: ${store.name}. Please check addresses.` };
         }
       } else {
         console.warn(`[calculateDeliveryCostAction] Store ${store.name} (${store.id}) is missing coordinates. Cannot calculate cost.`);
-        // You might want to return an error here if every store must have a cost
+        return { success: false, error: `Store "${store.name}" is missing location data. Cannot calculate delivery.` };
       }
     }
   } catch(error) {
@@ -253,9 +302,17 @@ export async function placeOrderAction(
     // Recalculate delivery cost on server for security
     let deliveryCost = 0;
     if (store && store.latitude && store.longitude) {
-      deliveryCost = getDeliveryCostForStore({ latitude, longitude }, { latitude: store.latitude, longitude: store.longitude }) ?? 0;
+      const distanceInKm = await getStreetDistance({ latitude, longitude }, { latitude: store.latitude, longitude: store.longitude });
+      if (distanceInKm === null) {
+        console.error(`[placeOrderAction] CRITICAL: Failed to calculate delivery cost from ORS for store ${storeName} (${storeId}). Skipping order for this store.`);
+        detailedErrors.push({ storeId, storeName, message: 'Could not calculate delivery cost. Please try again later.'});
+        continue;
+      }
+      deliveryCost = calculateDeliveryCost(distanceInKm);
     } else {
-      console.warn(`[placeOrderAction] Store ${storeName} (${storeId}) is missing coordinates. Delivery cost set to 0.`);
+      console.warn(`[placeOrderAction] Store ${storeName} (${storeId}) is missing coordinates. Delivery cost cannot be calculated. Skipping store.`);
+      detailedErrors.push({ storeId, storeName, message: `Store "${storeName}" is missing location data, cannot process order.` });
+      continue;
     }
 
     const subtotal = storeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
