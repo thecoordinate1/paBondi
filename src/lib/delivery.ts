@@ -10,7 +10,7 @@
  */
 export function calculateDeliveryCost(distanceInKm: number): number {
   const BASE_FEE = 15.00; // Base cost.
-  const PER_KM_RATE = 8.00; // Cost per kilometer.
+  const PER_KM_RATE = 5.00; // Cost per kilometer.
 
   const calculatedCost = BASE_FEE + (distanceInKm * PER_KM_RATE);
   
