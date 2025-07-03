@@ -53,7 +53,7 @@ const ProductCard = ({ product }: ProductCardProps) => {
         {product.averageRating !== undefined && product.reviewCount !== undefined && (
           <StarRating rating={product.averageRating} reviewCount={product.reviewCount} size={14} className="mb-2" showText/>
         )}
-        <p className="text-xl font-bold text-primary">${product.price.toFixed(2)}</p>
+        <p className="text-xl font-bold text-primary">ZMW {product.price.toFixed(2)}</p>
       </CardContent>
       <CardFooter className="p-4 border-t">
         <Button 

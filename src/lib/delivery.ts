@@ -30,17 +30,13 @@ function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: nu
  * @returns The calculated delivery fee.
  */
 export function calculateDeliveryFee(distanceInKm: number): number {
-  const BASE_FEE = 2.00; // A flat fee for every delivery.
-  const PER_KM_RATE = 0.50; // Cost per kilometer.
-  const MINIMUM_FEE = 3.00; // Minimum charge for any delivery.
+  const BASE_FEE = 15.00; // Base fee in ZMW.
+  const PER_KM_RATE = 8.00; // Cost per kilometer in ZMW.
 
   const calculatedFee = BASE_FEE + (distanceInKm * PER_KM_RATE);
   
-  // Ensure the fee is never below the minimum.
-  const finalFee = Math.max(calculatedFee, MINIMUM_FEE);
-
   // Round to 2 decimal places
-  return Math.round(finalFee * 100) / 100;
+  return Math.round(calculatedFee * 100) / 100;
 }
 
 
