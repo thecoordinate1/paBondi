@@ -163,3 +163,9 @@ export interface DeliveryFeeResult {
   error?: string;
   feesByStore?: Record<string, number>;
 }
+
+export interface GeocodeResult {
+  success: boolean;
+  address?: string;
+  error?: string;
+}

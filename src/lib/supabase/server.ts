@@ -3,9 +3,21 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { type cookies as NextCookiesType } from "next/headers";
 
 export const createClient = (cookieStore: ReturnType<typeof NextCookiesType>) => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || supabaseUrl.includes('YOUR_SUPABASE_URL') || !supabaseKey || supabaseKey.includes('YOUR_SUPABASE_ANON_KEY')) {
+    throw new Error('Supabase credentials are still placeholders. Please replace "YOUR_SUPABASE_URL" and "YOUR_SUPABASE_ANON_KEY" in your .env.local file with your actual Supabase credentials.');
+  }
+  
+  if (!supabaseUrl.startsWith('http')) {
+      throw new Error('The Supabase URL appears to be invalid. It should start with "http" or "https". Please check your .env.local file.');
+  }
+
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         get(name: string) {
@@ -37,16 +49,3 @@ export const createClient = (cookieStore: ReturnType<typeof NextCookiesType>) =>
     }
   );
 };
-
-// Note on Font Loading Errors (403 Forbidden for .woff2 files):
-// The 403 Forbidden errors for font files (e.g., /_next/static/media/...woff2)
-// are likely an environment-specific issue (e.g., Cloud Workstations configuration,
-// network policies, or specific Next.js serving issues in that environment)
-// or a very specific middleware interaction not excluding these paths correctly.
-// The middleware matcher `'/((?!_next/static|_next/image|favicon.ico|auth).*)'`
-// should typically exclude `/_next/static/...` paths. If these errors persist,
-// further investigation into the Cloud Workstations environment or how Next.js
-// serves `next/font` assets there would be needed. This is generally outside
-// the scope of direct application code changes for Supabase integration.
-// Consider testing with direct font links (e.g., Google Fonts via <link>)
-// temporarily to isolate if 'next/font' is part of the problem in this environment.

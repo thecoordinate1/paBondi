@@ -13,8 +13,49 @@ import {
   updateCustomer,
   getStoreById,
 } from '@/lib/data';
-import type { CartItem, OrderFormData, CreateOrderInput, CreateOrderItemInput, CreateCustomerInput, UpdateCustomerInput, PlaceOrderResult, DeliveryFeeResult, Store } from '@/types';
+import type { CartItem, OrderFormData, CreateOrderInput, CreateOrderItemInput, CreateCustomerInput, UpdateCustomerInput, PlaceOrderResult, DeliveryFeeResult, GeocodeResult, Store } from '@/types';
 import { getDeliveryFeeForStore } from '@/lib/delivery';
+
+export async function reverseGeocodeAction(latitude: number, longitude: number): Promise<GeocodeResult> {
+  const apiKey = process.env.OPEN_ROUTE_SERVICE_API_KEY;
+  if (!apiKey) {
+    console.error('[reverseGeocodeAction] OpenRouteService API key is not set.');
+    // Don't expose server config errors to client
+    return { success: false, error: 'Could not perform address lookup.' };
+  }
+
+  const url = `https://api.openrouteservice.org/geocode/reverse?api_key=${apiKey}&point.lon=${longitude}&point.lat=${latitude}&size=1&layers=address`;
+
+  try {
+    const response = await fetch(url, { headers: { 'Accept': 'application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8' }});
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[reverseGeocodeAction] ORS API error response:', errorText);
+      return { success: false, error: 'Failed to fetch address from coordinates.' };
+    }
+
+    const data = await response.json();
+    const feature = data.features?.[0];
+    if (feature && feature.properties) {
+      // ORS 'label' field is often a good pre-formatted address.
+      if (feature.properties.label) {
+        return { success: true, address: feature.properties.label };
+      }
+
+      // Fallback to building it manually
+      const { name, street, housenumber, locality, county, region } = feature.properties;
+      const addressParts = [housenumber, street, name, locality, county, region].filter(Boolean);
+      const address = addressParts.join(', ');
+      
+      return { success: true, address: address || 'Address details not found.' };
+    } else {
+      return { success: false, error: 'No address found for these coordinates.' };
+    }
+  } catch (error) {
+    console.error('[reverseGeocodeAction] Fetch error:', error);
+    return { success: false, error: 'Could not connect to geocoding service.' };
+  }
+}
 
 export async function calculateDeliveryFeeAction(
   userLocation: string, 
@@ -112,6 +153,14 @@ export async function placeOrderAction(
       return { success: false, error: 'Invalid location coordinates provided. Please use the format "latitude, longitude".' };
   }
 
+  let shippingAddress = `Coordinates: ${formData.location}`; // Default fallback
+  const geocodeResult = await reverseGeocodeAction(latitude, longitude);
+  if (geocodeResult.success && geocodeResult.address) {
+    shippingAddress = geocodeResult.address;
+    console.log(`[placeOrderAction] Successfully reverse geocoded coordinates to: ${shippingAddress}`);
+  } else {
+    console.warn(`[placeOrderAction] Reverse geocoding failed, falling back to coordinates. Reason: ${geocodeResult.error}`);
+  }
 
   let customerIdToLink: string | null = null;
   let existingCustomerTotalOrders = 0;
@@ -140,7 +189,7 @@ export async function placeOrderAction(
         email: formData.email,
         phone: formData.contactNumber,
         status: 'active',
-        street_address: `Coordinates: ${formData.location}`,
+        street_address: shippingAddress,
         joined_date: new Date().toISOString(),
         last_order_date: new Date().toISOString(),
         total_spent: 0,
@@ -158,9 +207,7 @@ export async function placeOrderAction(
   const placedOrderIds: string[] = [];
   const detailedErrors: { storeId?: string; storeName?: string; message: string }[] = [];
   let successfullyProcessedTotalAmountAllStores = 0;
-
-  const shippingAddress = `Coordinates: ${formData.location}`;
-
+  
   // 2. Process orders for each store
   for (const [storeId, storeItems] of itemsByStore.entries()) {
     const store = await getStoreById(supabase, storeId);
