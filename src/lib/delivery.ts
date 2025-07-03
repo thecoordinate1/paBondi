@@ -14,6 +14,6 @@ export function calculateDeliveryCost(distanceInKm: number): number {
 
   const calculatedCost = BASE_FEE + (distanceInKm * PER_KM_RATE);
   
-  // Round to 2 decimal places
-  return Math.round(calculatedCost * 100) / 100;
+  // Round to the nearest .5 or .0
+  return Math.round(calculatedCost * 2) / 2;
 }
