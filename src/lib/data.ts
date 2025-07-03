@@ -478,7 +478,7 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
     customerEmail: orderData.customer_email,
     orderDate: orderData.order_date,
     totalAmount: orderData.total_amount,
-    shippingCost: orderData.shipping_cost,
+    deliveryCost: orderData.delivery_cost,
     status: orderData.status,
     shippingAddress: orderData.shipping_address,
     billingAddress: orderData.billing_address,

@@ -110,7 +110,7 @@ const DisplayOrderCard = ({ order }: { order: AppOrder }) => {
           </div>
           <div className="space-y-1 sm:text-right">
              <p>Subtotal: <span className="font-medium">K {subtotal.toFixed(2)}</span></p>
-             <p>Delivery Cost: <span className="font-medium">K {(order.shippingCost || 0).toFixed(2)}</span></p>
+             <p>Delivery Cost: <span className="font-medium">K {(order.deliveryCost || 0).toFixed(2)}</span></p>
              <p className="text-lg font-semibold">Order Total: <span className="text-primary">K {order.totalAmount.toFixed(2)}</span></p>
           </div>
         </div>

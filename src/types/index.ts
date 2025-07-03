@@ -50,7 +50,7 @@ export interface CreateOrderInput {
   customer_email: string;
   order_date: string; // ISO string
   total_amount: number;
-  shipping_cost: number;
+  delivery_cost: number;
   status: string;
   shipping_address: string;
   billing_address: string;
@@ -90,7 +90,7 @@ export interface AppOrder {
   customerEmail: string;
   orderDate: string; // ISO string
   totalAmount: number;
-  shippingCost: number | null;
+  deliveryCost: number | null;
   status: string;
   shippingAddress: string;
   billingAddress: string;

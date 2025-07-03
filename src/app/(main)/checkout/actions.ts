@@ -325,7 +325,7 @@ export async function placeOrderAction(
       customer_email: formData.email,
       order_date: new Date().toISOString(),
       total_amount: finalTotalAmount,
-      shipping_cost: deliveryCost,
+      delivery_cost: deliveryCost,
       status: 'Pending',
       shipping_address: shippingAddress,
       billing_address: `Mobile Money: ${formData.mobileMoneyNumber}`,

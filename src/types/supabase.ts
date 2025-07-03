@@ -132,7 +132,7 @@ export interface Order {
   customer_email: string; // TEXT, NOT NULL
   order_date: string; // TIMESTAMPTZ, NOT NULL
   total_amount: number; // DECIMAL, NOT NULL
-  shipping_cost: number | null;
+  delivery_cost: number | null;
   status: string; // TEXT, NOT NULL (e.g., "Pending", "Order Confirmed", "Driver Picking Up", "Delivering", "Delivered", "Cancelled")
   shipping_address: string; // TEXT, NOT NULL
   billing_address: string; // TEXT, NOT NULL
