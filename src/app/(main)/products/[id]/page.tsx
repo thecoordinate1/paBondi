@@ -118,7 +118,7 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
             )}
             
             <CardContent className="p-0 space-y-4">
-              <p className="text-3xl font-extrabold text-foreground">ZMW {product.price.toFixed(2)}</p>
+              <p className="text-3xl font-extrabold text-foreground">K {product.price.toFixed(2)}</p>
 
               {product.stockCount !== undefined && (
                 <div className='my-3'>

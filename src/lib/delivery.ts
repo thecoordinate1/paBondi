@@ -30,8 +30,8 @@ function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: nu
  * @returns The calculated delivery fee.
  */
 export function calculateDeliveryFee(distanceInKm: number): number {
-  const BASE_FEE = 15.00; // Base fee in ZMW.
-  const PER_KM_RATE = 8.00; // Cost per kilometer in ZMW.
+  const BASE_FEE = 15.00; // Base fee.
+  const PER_KM_RATE = 8.00; // Cost per kilometer.
 
   const calculatedFee = BASE_FEE + (distanceInKm * PER_KM_RATE);
   

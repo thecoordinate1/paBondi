@@ -242,34 +242,34 @@ export default function CheckoutPage() {
                     />
                     <div className="flex-grow">
                       <p className="font-medium">{item.name} (x{item.quantity})</p>
-                      <p className="text-xs text-muted-foreground">ZMW {item.price.toFixed(2)} each</p>
+                      <p className="text-xs text-muted-foreground">K {item.price.toFixed(2)} each</p>
                       {item.storeName && (
                         <p className="text-xs text-muted-foreground">From: {item.storeName}</p>
                       )}
                     </div>
                   </div>
-                  <p className="font-semibold ml-2 shrink-0">ZMW {(item.price * item.quantity).toFixed(2)}</p>
+                  <p className="font-semibold ml-2 shrink-0">K {(item.price * item.quantity).toFixed(2)}</p>
                 </div>
               ))}
               <Separator />
                <div className="flex justify-between text-sm">
                 <p>Subtotal</p>
-                <p>ZMW {subTotal.toFixed(2)}</p>
+                <p>K {subTotal.toFixed(2)}</p>
               </div>
               <div className="flex justify-between text-sm">
                 <p>Delivery Fee</p>
                 {isCalculatingFee 
                   ? <Loader2 className="animate-spin h-4 w-4 text-muted-foreground" />
                   : deliveryFee !== null 
-                    ? <p>ZMW {deliveryFee.toFixed(2)}</p> 
-                    : <p className="text-muted-foreground">ZMW --.--</p>
+                    ? <p>K {deliveryFee.toFixed(2)}</p> 
+                    : <p className="text-muted-foreground">K --.--</p>
                 }
               </div>
               {calculationError && <p className="text-xs text-destructive text-right">{calculationError}</p>}
               <Separator />
               <div className="flex justify-between font-bold text-lg pt-2">
                 <p>Total</p>
-                <p>ZMW {finalTotal.toFixed(2)}</p>
+                <p>K {finalTotal.toFixed(2)}</p>
               </div>
             </CardContent>
           </Card>

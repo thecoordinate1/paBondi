@@ -47,7 +47,7 @@ export default function CartPage() {
                 <Link href={`/products/${item.id}`} className="block">
                   <h2 className="text-lg font-semibold hover:text-primary transition-colors break-words">{item.name}</h2>
                 </Link>
-                <p className="text-sm text-muted-foreground">Price: ZMW {item.price.toFixed(2)}</p>
+                <p className="text-sm text-muted-foreground">Price: K {item.price.toFixed(2)}</p>
                  <Link href={`/stores/${item.storeId}`} className="text-xs text-muted-foreground hover:underline">
                     Sold by: {item.storeName || 'Store'}
                  </Link>
@@ -67,7 +67,7 @@ export default function CartPage() {
                   <Plus size={16} />
                 </Button>
               </div>
-              <p className="font-semibold w-20 text-center sm:text-right text-lg">ZMW {(item.price * item.quantity).toFixed(2)}</p>
+              <p className="font-semibold w-20 text-center sm:text-right text-lg">K {(item.price * item.quantity).toFixed(2)}</p>
               <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)} className="text-destructive hover:text-destructive/80">
                 <Trash2 size={18} />
               </Button>
@@ -83,7 +83,7 @@ export default function CartPage() {
             <CardContent className="space-y-4">
               <div className="flex justify-between">
                 <p>Subtotal</p>
-                <p>ZMW {getCartTotal().toFixed(2)}</p>
+                <p>K {getCartTotal().toFixed(2)}</p>
               </div>
               <div className="flex justify-between text-sm text-muted-foreground">
                 <p>Shipping</p>
@@ -96,7 +96,7 @@ export default function CartPage() {
               <Separator />
               <div className="flex justify-between font-bold text-lg">
                 <p>Total</p>
-                <p>ZMW {getCartTotal().toFixed(2)}</p>
+                <p>K {getCartTotal().toFixed(2)}</p>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-2">
