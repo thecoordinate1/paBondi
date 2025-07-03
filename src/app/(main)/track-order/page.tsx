@@ -11,7 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { fetchOrderAction } from './actions';
 import type { AppOrder, AppOrderItem } from '@/types';
 import Image from 'next/image';
-import { PackageSearch, AlertCircle, Info, ShoppingBag, UserCircle, MapPin, CalendarDays, Hash, Truck, CreditCard, Loader2 } from 'lucide-react';
+import { PackageSearch, AlertCircle, Info, ShoppingBag, UserCircle, MapPin, CalendarDays, Hash, Truck, CreditCard, Loader2, MessageSquareText } from 'lucide-react';
 import { format } from 'date-fns';
 
 const OrderItemCard = ({ item }: { item: AppOrderItem }) => (
@@ -81,6 +81,17 @@ const DisplayOrderCard = ({ order }: { order: AppOrder }) => {
             </CardContent>
           </Card>
         </div>
+
+        {order.customer_specifications && (
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2"><MessageSquareText size={22}/> Customer Specifications</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm">
+              <p className="whitespace-pre-wrap">{order.customer_specifications}</p>
+            </CardContent>
+          </Card>
+        )}
 
         <div>
           <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><ShoppingBag size={22}/>Items Ordered</h3>

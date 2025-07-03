@@ -42,6 +42,7 @@ export interface OrderFormData {
   contactNumber: string;
   location: string; // Will hold coordinates like "lat, lng"
   mobileMoneyNumber: string;
+  customer_specifications?: string;
 }
 
 export interface CreateOrderInput {
@@ -60,6 +61,7 @@ export interface CreateOrderInput {
   shipping_method?: string | null;
   payment_method?: string | null;
   tracking_number?: string | null;
+  customer_specifications?: string | null;
 }
 
 export interface CreateOrderItemInput {
@@ -99,6 +101,7 @@ export interface AppOrder {
   trackingNumber?: string | null;
   shippingLatitude?: number | null;
   shippingLongitude?: number | null;
+  customer_specifications?: string | null;
   createdAt: string;
   updatedAt: string;
   items: AppOrderItem[];

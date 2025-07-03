@@ -20,6 +20,7 @@ import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AlertCircle, Info, LocateFixed, Loader2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 
 const checkoutFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
@@ -29,6 +30,7 @@ const checkoutFormSchema = z.object({
     message: "Invalid format. Please use 'latitude, longitude'."
   }),
   mobileMoneyNumber: z.string().min(9, { message: "A valid mobile money number is required." }),
+  customer_specifications: z.string().max(500, "Specifications cannot exceed 500 characters.").optional(),
 });
 
 export default function CheckoutPage() {
@@ -336,6 +338,23 @@ export default function CheckoutPage() {
                 
                 <Separator />
                 
+                <div>
+                  <Label htmlFor="customer_specifications">Order Specifications (Optional)</Label>
+                  <Textarea
+                    id="customer_specifications"
+                    {...register("customer_specifications")}
+                    className="mt-1"
+                    placeholder="e.g., Please call upon arrival, pack items separately, etc."
+                    rows={3}
+                  />
+                  {errors.customer_specifications && <p className="text-sm text-destructive mt-1">{errors.customer_specifications.message}</p>}
+                   <p className="text-xs text-muted-foreground mt-1">
+                      Add any special instructions for your order here.
+                    </p>
+                </div>
+
+                <Separator />
+
                 <div className="space-y-2">
                    <Label htmlFor="mobileMoneyNumber">Mobile Money Number</Label>
                     <Input id="mobileMoneyNumber" type="tel" {...register("mobileMoneyNumber")} placeholder="e.g., 2567..." className="mt-1" />
