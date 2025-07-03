@@ -44,8 +44,8 @@ export interface Store {
   status: string; // TEXT, NOT NULL (e.g., "active", "pending", "archived")
   category: string; // TEXT, NOT NULL
   location: string | null; // TEXT
-  latitude: number | null;
-  longitude: number | null;
+  pickup_latitude: number | null;
+  pickup_longitude: number | null;
   created_at: string; // TIMESTAMPTZ
   updated_at: string; // TIMESTAMPTZ
 }

@@ -26,8 +26,8 @@ export interface Store {
   description: string;
   category?: string;
   location?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
+  pickup_latitude?: number | null;
+  pickup_longitude?: number | null;
   socialLinks?: SocialLinkItem[];
   featured?: boolean;
 }

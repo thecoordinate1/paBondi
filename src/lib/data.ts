@@ -72,8 +72,8 @@ const mapSupabaseStoreToAppStore = (
     description: supabaseStore.description,
     category: supabaseStore.category,
     location: supabaseStore.location,
-    latitude: supabaseStore.latitude,
-    longitude: supabaseStore.longitude,
+    pickup_latitude: supabaseStore.pickup_latitude,
+    pickup_longitude: supabaseStore.pickup_longitude,
     socialLinks: socialLinks?.map(sl => ({ platform: sl.platform, url: sl.url })) || [],
   };
 };

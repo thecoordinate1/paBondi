@@ -148,8 +148,8 @@ export async function calculateDeliveryCostAction(
         console.warn(`[calculateDeliveryCostAction] Could not find a store for one of the items.`);
         continue; // Or handle as an error
       }
-      if (store.latitude && store.longitude) {
-        const distanceInKm = await getStreetDistance(userCoords, { latitude: store.latitude, longitude: store.longitude });
+      if (store.pickup_latitude && store.pickup_longitude) {
+        const distanceInKm = await getStreetDistance(userCoords, { latitude: store.pickup_latitude, longitude: store.pickup_longitude });
         
         if (distanceInKm !== null) {
           const cost = calculateDeliveryCost(distanceInKm);
@@ -160,7 +160,7 @@ export async function calculateDeliveryCostAction(
            return { success: false, error: `Could not calculate delivery route for store: ${store.name}. Please check addresses.` };
         }
       } else {
-        console.warn(`[calculateDeliveryCostAction] Store ${store.name} (${store.id}) is missing coordinates. Cannot calculate cost.`);
+        console.warn(`[calculateDeliveryCostAction] Store ${store.name} (${store.id}) is missing pickup coordinates. Cannot calculate cost.`);
         return { success: false, error: `Store "${store.name}" is missing location data. Cannot calculate delivery.` };
       }
     }
@@ -301,8 +301,8 @@ export async function placeOrderAction(
     
     // Recalculate delivery cost on server for security
     let deliveryCost = 0;
-    if (store && store.latitude && store.longitude) {
-      const distanceInKm = await getStreetDistance({ latitude, longitude }, { latitude: store.latitude, longitude: store.longitude });
+    if (store && store.pickup_latitude && store.pickup_longitude) {
+      const distanceInKm = await getStreetDistance({ latitude, longitude }, { latitude: store.pickup_latitude, longitude: store.pickup_longitude });
       if (distanceInKm === null) {
         console.error(`[placeOrderAction] CRITICAL: Failed to calculate delivery cost from ORS for store ${storeName} (${storeId}). Skipping order for this store.`);
         detailedErrors.push({ storeId, storeName, message: 'Could not calculate delivery cost. Please try again later.'});
@@ -310,7 +310,7 @@ export async function placeOrderAction(
       }
       deliveryCost = calculateDeliveryCost(distanceInKm);
     } else {
-      console.warn(`[placeOrderAction] Store ${storeName} (${storeId}) is missing coordinates. Delivery cost cannot be calculated. Skipping store.`);
+      console.warn(`[placeOrderAction] Store ${storeName} (${storeId}) is missing pickup coordinates. Delivery cost cannot be calculated. Skipping store.`);
       detailedErrors.push({ storeId, storeName, message: `Store "${storeName}" is missing location data, cannot process order.` });
       continue;
     }
