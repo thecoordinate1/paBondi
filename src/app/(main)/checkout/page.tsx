@@ -13,7 +13,7 @@ import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import type { OrderFormData, PlaceOrderResult } from '@/types';
-import { placeOrderAction, calculateDeliveryFeeAction } from './actions';
+import { placeOrderAction, calculateDeliveryCostAction } from './actions';
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -39,9 +39,9 @@ export default function CheckoutPage() {
   const [isClient, setIsClient] = useState(false);
   const [submissionErrors, setSubmissionErrors] = useState<{ storeId?: string; storeName?: string; message: string }[] | null>(null);
   
-  const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
-  const [isCalculatingFee, setIsCalculatingFee] = useState(false);
-  const [calculationError, setCalculationError] = useState<string | null>(null);
+  const [deliveryCost, setDeliveryCost] = useState<number | null>(null);
+  const [isCalculatingCost, setIsCalculatingCost] = useState(false);
+  const [costCalculationError, setCostCalculationError] = useState<string | null>(null);
 
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -64,24 +64,24 @@ export default function CheckoutPage() {
   
   const userLocation = watch('location');
 
-  const handleCalculateFee = useCallback(async (location: string) => {
+  const handleCalculateCost = useCallback(async (location: string) => {
     if (cartItems.length === 0) return;
-    setIsCalculatingFee(true);
-    setCalculationError(null);
-    setDeliveryFee(null);
+    setIsCalculatingCost(true);
+    setCostCalculationError(null);
+    setDeliveryCost(null);
     try {
-        const result = await calculateDeliveryFeeAction(location, cartItems);
-        if (result.success && result.totalDeliveryFee !== undefined) {
-            setDeliveryFee(result.totalDeliveryFee);
+        const result = await calculateDeliveryCostAction(location, cartItems);
+        if (result.success && result.totalDeliveryCost !== undefined) {
+            setDeliveryCost(result.totalDeliveryCost);
         } else {
-            setCalculationError(result.error || "Could not calculate delivery fee. Please ensure store information is complete.");
-            setDeliveryFee(null);
+            setCostCalculationError(result.error || "Could not calculate delivery cost. Please ensure store information is complete.");
+            setDeliveryCost(null);
         }
     } catch (e) {
-        setCalculationError("An error occurred while calculating the fee.");
-        setDeliveryFee(null);
+        setCostCalculationError("An error occurred while calculating the cost.");
+        setDeliveryCost(null);
     } finally {
-        setIsCalculatingFee(false);
+        setIsCalculatingCost(false);
     }
   }, [cartItems]);
 
@@ -89,14 +89,14 @@ export default function CheckoutPage() {
     const isLocationValid = checkoutFormSchema.shape.location.safeParse(userLocation).success;
     if (isLocationValid) {
         const handler = setTimeout(() => {
-            handleCalculateFee(userLocation);
+            handleCalculateCost(userLocation);
         }, 500); // Debounce for 500ms
         return () => clearTimeout(handler);
     } else {
-        setDeliveryFee(null);
-        setCalculationError(null);
+        setDeliveryCost(null);
+        setCostCalculationError(null);
     }
-  }, [userLocation, handleCalculateFee]);
+  }, [userLocation, handleCalculateCost]);
 
   const handleGetCurrentLocation = () => {
     setIsLocating(true);
@@ -137,10 +137,10 @@ export default function CheckoutPage() {
   };
 
   const onSubmit: SubmitHandler<OrderFormData> = async (data) => {
-    if (deliveryFee === null) {
+    if (deliveryCost === null) {
       toast({
-        title: "Delivery Fee Missing",
-        description: "Please provide a valid location to calculate the delivery fee before placing an order.",
+        title: "Delivery Cost Missing",
+        description: "Please provide a valid location to calculate the delivery cost before placing an order.",
         variant: "destructive",
       });
       return;
@@ -199,7 +199,7 @@ export default function CheckoutPage() {
   }
 
   const subTotal = getCartTotal();
-  const finalTotal = subTotal + (deliveryFee || 0);
+  const finalTotal = subTotal + (deliveryCost || 0);
 
   return (
     <div className="space-y-8">
@@ -257,15 +257,15 @@ export default function CheckoutPage() {
                 <p>K {subTotal.toFixed(2)}</p>
               </div>
               <div className="flex justify-between text-sm">
-                <p>Delivery Fee</p>
-                {isCalculatingFee 
+                <p>Delivery Cost</p>
+                {isCalculatingCost 
                   ? <Loader2 className="animate-spin h-4 w-4 text-muted-foreground" />
-                  : deliveryFee !== null 
-                    ? <p>K {deliveryFee.toFixed(2)}</p> 
+                  : deliveryCost !== null 
+                    ? <p>K {deliveryCost.toFixed(2)}</p> 
                     : <p className="text-muted-foreground">K --.--</p>
                 }
               </div>
-              {calculationError && <p className="text-xs text-destructive text-right">{calculationError}</p>}
+              {costCalculationError && <p className="text-xs text-destructive text-right">{costCalculationError}</p>}
               <Separator />
               <div className="flex justify-between font-bold text-lg pt-2">
                 <p>Total</p>
@@ -347,7 +347,7 @@ export default function CheckoutPage() {
 
 
                 <CardFooter className="p-0 pt-4">
-                  <Button type="submit" size="lg" className="w-full" disabled={isSubmitting || isLocating || isCalculatingFee || deliveryFee === null}>
+                  <Button type="submit" size="lg" className="w-full" disabled={isSubmitting || isLocating || isCalculatingCost || deliveryCost === null}>
                     {isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 animate-spin" />

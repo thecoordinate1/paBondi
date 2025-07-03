@@ -157,11 +157,11 @@ export interface PlaceOrderResult {
   detailedErrors?: { storeId?: string; storeName?: string; message: string }[];
 }
 
-export interface DeliveryFeeResult {
+export interface DeliveryCostResult {
   success: boolean;
-  totalDeliveryFee?: number;
+  totalDeliveryCost?: number;
   error?: string;
-  feesByStore?: Record<string, number>;
+  costsByStore?: Record<string, number>;
 }
 
 export interface GeocodeResult {

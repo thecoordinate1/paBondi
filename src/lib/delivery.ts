@@ -24,29 +24,29 @@ function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: nu
 }
 
 /**
- * Calculates the delivery fee based on distance.
+ * Calculates the delivery cost based on distance.
  * This is a simple model and can be expanded.
  * @param distanceInKm The distance in kilometers.
- * @returns The calculated delivery fee.
+ * @returns The calculated delivery cost.
  */
-export function calculateDeliveryFee(distanceInKm: number): number {
-  const BASE_FEE = 15.00; // Base fee.
+export function calculateDeliveryCost(distanceInKm: number): number {
+  const BASE_FEE = 15.00; // Base cost.
   const PER_KM_RATE = 8.00; // Cost per kilometer.
 
-  const calculatedFee = BASE_FEE + (distanceInKm * PER_KM_RATE);
+  const calculatedCost = BASE_FEE + (distanceInKm * PER_KM_RATE);
   
   // Round to 2 decimal places
-  return Math.round(calculatedFee * 100) / 100;
+  return Math.round(calculatedCost * 100) / 100;
 }
 
 
 /**
- * Calculates delivery fee between two coordinate points.
+ * Calculates delivery cost between two coordinate points.
  * @param userCoords - The user's coordinates { latitude: number, longitude: number }.
  * @param storeCoords - The store's coordinates { latitude: number, longitude: number }.
- * @returns The delivery fee, or null if coordinates are invalid.
+ * @returns The delivery cost, or null if coordinates are invalid.
  */
-export function getDeliveryFeeForStore(
+export function getDeliveryCostForStore(
   userCoords: { latitude: number; longitude: number; },
   storeCoords: { latitude: number; longitude: number; }
 ): number | null {
@@ -59,5 +59,5 @@ export function getDeliveryFeeForStore(
     storeCoords.latitude,
     storeCoords.longitude
   );
-  return calculateDeliveryFee(distance);
+  return calculateDeliveryCost(distance);
 }

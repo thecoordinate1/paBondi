@@ -13,13 +13,13 @@ import {
   updateCustomer,
   getStoreById,
 } from '@/lib/data';
-import type { CartItem, OrderFormData, CreateOrderInput, CreateOrderItemInput, CreateCustomerInput, UpdateCustomerInput, PlaceOrderResult, DeliveryFeeResult, GeocodeResult, Store } from '@/types';
-import { getDeliveryFeeForStore } from '@/lib/delivery';
+import type { CartItem, OrderFormData, CreateOrderInput, CreateOrderItemInput, CreateCustomerInput, UpdateCustomerInput, PlaceOrderResult, DeliveryCostResult, GeocodeResult, Store } from '@/types';
+import { getDeliveryCostForStore } from '@/lib/delivery';
 
 export async function reverseGeocodeAction(latitude: number, longitude: number): Promise<GeocodeResult> {
   const apiKey = process.env.OPEN_ROUTE_SERVICE_API_KEY;
-  if (!apiKey) {
-    console.error('[reverseGeocodeAction] OpenRouteService API key is not set.');
+  if (!apiKey || apiKey === 'YOUR_ORS_API_KEY_HERE') {
+    console.error('[reverseGeocodeAction] OpenRouteService API key is not set or is a placeholder.');
     // Don't expose server config errors to client
     return { success: false, error: 'Could not perform address lookup.' };
   }
@@ -57,10 +57,10 @@ export async function reverseGeocodeAction(latitude: number, longitude: number):
   }
 }
 
-export async function calculateDeliveryFeeAction(
+export async function calculateDeliveryCostAction(
   userLocation: string, 
   cartItems: CartItem[]
-): Promise<DeliveryFeeResult> {
+): Promise<DeliveryCostResult> {
   if (!userLocation) {
     return { success: false, error: 'User location is required.' };
   }
@@ -84,8 +84,8 @@ export async function calculateDeliveryFeeAction(
   const supabase = createSupabaseClient(cookieStore);
 
   const uniqueStoreIds = [...new Set(cartItems.map(item => item.storeId))];
-  let totalDeliveryFee = 0;
-  const feesByStore: Record<string, number> = {};
+  let totalDeliveryCost = 0;
+  const costsByStore: Record<string, number> = {};
 
   try {
     const storePromises = uniqueStoreIds.map(id => getStoreById(supabase, id));
@@ -93,28 +93,28 @@ export async function calculateDeliveryFeeAction(
 
     for (const store of stores) {
       if (!store) {
-        console.warn(`[calculateDeliveryFeeAction] Could not find a store for one of the items.`);
+        console.warn(`[calculateDeliveryCostAction] Could not find a store for one of the items.`);
         continue; // Or handle as an error
       }
       if (store.latitude && store.longitude) {
-        const fee = getDeliveryFeeForStore(userCoords, { latitude: store.latitude, longitude: store.longitude });
-        if (fee !== null) {
-          feesByStore[store.id] = fee;
-          totalDeliveryFee += fee;
+        const cost = getDeliveryCostForStore(userCoords, { latitude: store.latitude, longitude: store.longitude });
+        if (cost !== null) {
+          costsByStore[store.id] = cost;
+          totalDeliveryCost += cost;
         } else {
-           console.warn(`[calculateDeliveryFeeAction] Could not calculate fee for store ${store.id}.`);
+           console.warn(`[calculateDeliveryCostAction] Could not calculate cost for store ${store.id}.`);
         }
       } else {
-        console.warn(`[calculateDeliveryFeeAction] Store ${store.name} (${store.id}) is missing coordinates. Cannot calculate fee.`);
-        // You might want to return an error here if every store must have a fee
+        console.warn(`[calculateDeliveryCostAction] Store ${store.name} (${store.id}) is missing coordinates. Cannot calculate cost.`);
+        // You might want to return an error here if every store must have a cost
       }
     }
   } catch(error) {
-    console.error(`[calculateDeliveryFeeAction] Error fetching stores or calculating fees:`, error);
-    return { success: false, error: 'An error occurred while calculating delivery fees.' };
+    console.error(`[calculateDeliveryCostAction] Error fetching stores or calculating costs:`, error);
+    return { success: false, error: 'An error occurred while calculating delivery costs.' };
   }
 
-  return { success: true, totalDeliveryFee, feesByStore };
+  return { success: true, totalDeliveryCost, costsByStore };
 }
 
 
@@ -235,16 +235,16 @@ export async function placeOrderAction(
       continue;
     }
     
-    // Recalculate delivery fee on server for security
-    let deliveryFee = 0;
+    // Recalculate delivery cost on server for security
+    let deliveryCost = 0;
     if (store && store.latitude && store.longitude) {
-      deliveryFee = getDeliveryFeeForStore({ latitude, longitude }, { latitude: store.latitude, longitude: store.longitude }) ?? 0;
+      deliveryCost = getDeliveryCostForStore({ latitude, longitude }, { latitude: store.latitude, longitude: store.longitude }) ?? 0;
     } else {
-      console.warn(`[placeOrderAction] Store ${storeName} (${storeId}) is missing coordinates. Delivery fee set to 0.`);
+      console.warn(`[placeOrderAction] Store ${storeName} (${storeId}) is missing coordinates. Delivery cost set to 0.`);
     }
 
     const subtotal = storeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const finalTotalAmount = subtotal + deliveryFee;
+    const finalTotalAmount = subtotal + deliveryCost;
 
     const orderInput: CreateOrderInput = {
       store_id: storeId,
@@ -253,7 +253,7 @@ export async function placeOrderAction(
       customer_email: formData.email,
       order_date: new Date().toISOString(),
       total_amount: finalTotalAmount,
-      shipping_cost: deliveryFee,
+      shipping_cost: deliveryCost,
       status: 'Pending',
       shipping_address: shippingAddress,
       billing_address: `Mobile Money: ${formData.mobileMoneyNumber}`,
