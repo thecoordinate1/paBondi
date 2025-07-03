@@ -83,7 +83,13 @@ export async function calculateDeliveryCostAction(
   const cookieStore = cookies();
   const supabase = createSupabaseClient(cookieStore);
 
-  const uniqueStoreIds = [...new Set(cartItems.map(item => item.storeId))];
+  // Filter for valid store IDs to prevent errors from items without a store
+  const uniqueStoreIds = [...new Set(cartItems.map(item => item.storeId).filter((id): id is string => !!id))];
+  
+  if (uniqueStoreIds.length === 0) {
+    return { success: false, error: 'No items in cart are associated with a store.' };
+  }
+
   let totalDeliveryCost = 0;
   const costsByStore: Record<string, number> = {};
 
@@ -129,13 +135,18 @@ export async function placeOrderAction(
     return { success: false, error: 'Your cart is empty.' };
   }
 
-  // Group items by storeId
+  // Group items by storeId, handling items that might not have one.
   const itemsByStore = new Map<string, CartItem[]>();
+  const itemsWithoutStore: CartItem[] = [];
   for (const item of cartItems) {
-    if (!itemsByStore.has(item.storeId)) {
-      itemsByStore.set(item.storeId, []);
+    if (item.storeId) {
+      if (!itemsByStore.has(item.storeId)) {
+        itemsByStore.set(item.storeId, []);
+      }
+      itemsByStore.get(item.storeId)!.push(item);
+    } else {
+      itemsWithoutStore.push(item);
     }
-    itemsByStore.get(item.storeId)!.push(item);
   }
 
   // Parse location coordinates from form data
@@ -208,6 +219,10 @@ export async function placeOrderAction(
   const detailedErrors: { storeId?: string; storeName?: string; message: string }[] = [];
   let successfullyProcessedTotalAmountAllStores = 0;
   
+  if (itemsWithoutStore.length > 0) {
+    detailedErrors.push({ message: `${itemsWithoutStore.length} item(s) could not be processed as they are not linked to a valid store.` });
+  }
+
   // 2. Process orders for each store
   for (const [storeId, storeItems] of itemsByStore.entries()) {
     const store = await getStoreById(supabase, storeId);
