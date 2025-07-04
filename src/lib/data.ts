@@ -487,7 +487,7 @@ export const getOrderDetailsById = async (supabase: SupabaseClient, orderId: str
     trackingNumber: orderData.tracking_number,
     shippingLatitude: orderData.shipping_latitude,
     shippingLongitude: orderData.shipping_longitude,
-    customer_specifications: orderData.customer_specifications,
+    customer_specification: orderData.customer_specification,
     createdAt: orderData.created_at,
     updatedAt: orderData.updated_at,
     items: appOrderItems,

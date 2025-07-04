@@ -82,13 +82,13 @@ const DisplayOrderCard = ({ order }: { order: AppOrder }) => {
           </Card>
         </div>
 
-        {order.customer_specifications && (
+        {order.customer_specification && (
           <Card className="shadow-md">
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-2"><MessageSquareText size={22}/> Customer Specifications</CardTitle>
             </CardHeader>
             <CardContent className="text-sm">
-              <p className="whitespace-pre-wrap">{order.customer_specifications}</p>
+              <p className="whitespace-pre-wrap">{order.customer_specification}</p>
             </CardContent>
           </Card>
         )}

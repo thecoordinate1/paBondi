@@ -332,7 +332,7 @@ export async function placeOrderAction(
       shipping_latitude: latitude,
       shipping_longitude: longitude,
       payment_method: 'Mobile Money',
-      customer_specifications: formData.customer_specifications || null,
+      customer_specification: formData.customer_specification || null,
     };
 
     try {

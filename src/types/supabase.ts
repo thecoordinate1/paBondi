@@ -140,7 +140,7 @@ export interface Order {
   shipping_method: string | null; // TEXT
   payment_method: string | null; // TEXT
   tracking_number: string | null; // TEXT
-  customer_specifications: string | null; // TEXT
+  customer_specification: string | null; // TEXT
   shipping_latitude: number | null;
   shipping_longitude: number | null;
   created_at: string; // TIMESTAMPTZ

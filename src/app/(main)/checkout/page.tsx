@@ -30,7 +30,7 @@ const checkoutFormSchema = z.object({
     message: "Invalid format. Please use 'latitude, longitude'."
   }),
   mobileMoneyNumber: z.string().min(9, { message: "A valid mobile money number is required." }),
-  customer_specifications: z.string().max(500, "Specifications cannot exceed 500 characters.").optional(),
+  customer_specification: z.string().max(500, "Specifications cannot exceed 500 characters.").optional(),
 });
 
 export default function CheckoutPage() {
@@ -339,15 +339,15 @@ export default function CheckoutPage() {
                 <Separator />
                 
                 <div>
-                  <Label htmlFor="customer_specifications">Order Specifications (Optional)</Label>
+                  <Label htmlFor="customer_specification">Order Specifications (Optional)</Label>
                   <Textarea
-                    id="customer_specifications"
-                    {...register("customer_specifications")}
+                    id="customer_specification"
+                    {...register("customer_specification")}
                     className="mt-1"
                     placeholder="e.g., Please call upon arrival, pack items separately, etc."
                     rows={3}
                   />
-                  {errors.customer_specifications && <p className="text-sm text-destructive mt-1">{errors.customer_specifications.message}</p>}
+                  {errors.customer_specification && <p className="text-sm text-destructive mt-1">{errors.customer_specification.message}</p>}
                    <p className="text-xs text-muted-foreground mt-1">
                       Add any special instructions for your order here.
                     </p>
