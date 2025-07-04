@@ -4,8 +4,8 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { CheckCircle, PackageSearch, Home } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { CheckCircle, Home, ShoppingBag } from 'lucide-react';
 import { Suspense } from 'react';
 
 function OrderConfirmationContent() {
@@ -32,43 +32,22 @@ function OrderConfirmationContent() {
     );
   }
 
-  const firstOrderId = orderIds[0];
-
   return (
     <div className="flex flex-col items-center justify-center text-center space-y-6">
       <CheckCircle className="w-24 h-24 text-green-500" />
-      <h1 className="text-3xl md:text-4xl font-bold text-foreground">Thank You For Your Order!</h1>
+      <h1 className="text-3xl md:text-4xl font-bold text-foreground">Checkout Complete!</h1>
       <p className="text-lg text-muted-foreground max-w-xl">
         Your order has been successfully placed. We've sent a confirmation email (simulated) and will notify you once your items have shipped.
       </p>
-
-      <Card className="w-full max-w-md text-left shadow-lg">
-        <CardHeader>
-          <CardTitle>Order Summary</CardTitle>
-          <CardDescription>Your order{orderIds.length > 1 ? 's were' : ' was'} placed successfully.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="font-semibold mb-2">Your Order ID{orderIds.length > 1 ? 's' : ''}:</p>
-          <div className="space-y-1">
-            {orderIds.map(id => (
-              <p key={id} className="text-sm font-mono p-2 bg-muted rounded-md break-all">{id}</p>
-            ))}
-          </div>
-        </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row gap-4">
-          <Link href={`/track-order?search=${firstOrderId}`} passHref className="w-full">
-            <Button className="w-full">
-              <PackageSearch className="mr-2" />
-              Track Your Order(s)
-            </Button>
-          </Link>
-          <Link href="/products" passHref className="w-full">
-            <Button variant="outline" className="w-full">
+      
+      <div className="pt-6">
+          <Link href="/products" passHref>
+            <Button size="lg">
+              <ShoppingBag className="mr-2 h-5 w-5" />
               Continue Shopping
             </Button>
           </Link>
-        </CardFooter>
-      </Card>
+      </div>
     </div>
   );
 }
