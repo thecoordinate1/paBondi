@@ -263,79 +263,65 @@ export async function placeOrderAction(
     console.error('[placeOrderAction] Error managing customer record:', customerError);
     return { success: false, error: customerError instanceof Error ? customerError.message : 'An error occurred while managing customer data.' };
   }
-
+  
   const placedOrderIds: string[] = [];
   const detailedErrors: { storeId?: string; storeName?: string; message: string }[] = [];
   let successfullyProcessedTotalAmountAllStores = 0;
-  
+
   if (itemsWithoutStore.length > 0) {
     detailedErrors.push({ message: `${itemsWithoutStore.length} item(s) could not be processed as they are not linked to a valid store.` });
   }
 
-  // 2. Process orders for each store
-  for (const [storeId, storeItems] of itemsByStore.entries()) {
-    const store = await getStoreById(supabase, storeId);
-    let storeName = store?.name || 'Unknown Store';
-
-    // Stock validation for this store's items
+  // 2. Process orders for each store in parallel
+  const storeProcessingPromises = Array.from(itemsByStore.entries()).map(async ([storeId, storeItems]) => {
     try {
+      const store = await getStoreById(supabase, storeId);
+      const storeName = store?.name || 'Unknown Store';
+
+      // Stock validation for this store's items
       for (const item of storeItems) {
         const currentStock = await getProductStock(supabase, item.id);
         if (currentStock === null) {
-          detailedErrors.push({ storeId, storeName, message: `Product ${item.name} not found.`});
-          throw new Error(`Product ${item.name} from store ${storeName} not found, skipping order for this store.`);
+          throw new Error(`Product ${item.name} not found.`);
         }
         item.stockCount = currentStock; 
         if (item.stockCount < item.quantity) {
-          detailedErrors.push({ storeId, storeName, message: `Not enough stock for ${item.name}. Only ${item.stockCount} available.`});
-          throw new Error(`Not enough stock for ${item.name} from store ${storeName}, skipping order for this store.`);
+          throw new Error(`Not enough stock for ${item.name}. Only ${item.stockCount} available.`);
         }
       }
-    } catch (stockValidationError) {
-      console.warn(`[placeOrderAction] Stock validation failed for store ${storeName} (${storeId}):`, stockValidationError instanceof Error ? stockValidationError.message : stockValidationError);
-      if (!detailedErrors.find(de => de.storeId === storeId)) {
-         detailedErrors.push({ storeId, storeName, message: stockValidationError instanceof Error ? stockValidationError.message : 'Stock validation failed.' });
+      
+      // Recalculate delivery cost on server for security
+      let deliveryCost = 0;
+      if (store && store.pickup_latitude && store.pickup_longitude) {
+        const distanceInKm = await getStreetDistance({ latitude, longitude }, { latitude: store.pickup_latitude, longitude: store.pickup_longitude });
+        if (distanceInKm === null) {
+          throw new Error('Could not calculate delivery cost. Please try again later.');
+        }
+        deliveryCost = calculateDeliveryCost(distanceInKm);
+      } else {
+        throw new Error(`Store "${storeName}" is missing location data, cannot process order.`);
       }
-      continue;
-    }
-    
-    // Recalculate delivery cost on server for security
-    let deliveryCost = 0;
-    if (store && store.pickup_latitude && store.pickup_longitude) {
-      const distanceInKm = await getStreetDistance({ latitude, longitude }, { latitude: store.pickup_latitude, longitude: store.pickup_longitude });
-      if (distanceInKm === null) {
-        console.error(`[placeOrderAction] CRITICAL: Failed to calculate delivery cost from ORS for store ${storeName} (${storeId}). Skipping order for this store.`);
-        detailedErrors.push({ storeId, storeName, message: 'Could not calculate delivery cost. Please try again later.'});
-        continue;
-      }
-      deliveryCost = calculateDeliveryCost(distanceInKm);
-    } else {
-      console.warn(`[placeOrderAction] Store ${storeName} (${storeId}) is missing pickup coordinates. Delivery cost cannot be calculated. Skipping store.`);
-      detailedErrors.push({ storeId, storeName, message: `Store "${storeName}" is missing location data, cannot process order.` });
-      continue;
-    }
 
-    const subtotal = storeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const finalTotalAmount = subtotal + deliveryCost;
+      const subtotal = storeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const finalTotalAmount = subtotal + deliveryCost;
 
-    const orderInput: CreateOrderInput = {
-      store_id: storeId,
-      customer_id: customerIdToLink,
-      customer_name: formData.name,
-      customer_email: formData.email,
-      order_date: new Date().toISOString(),
-      total_amount: finalTotalAmount,
-      delivery_cost: deliveryCost,
-      status: 'Pending',
-      shipping_address: shippingAddress,
-      billing_address: `Mobile Money: ${formData.mobileMoneyNumber}`,
-      shipping_latitude: latitude,
-      shipping_longitude: longitude,
-      payment_method: 'Mobile Money',
-      customer_specification: formData.customer_specification || null,
-    };
-
-    try {
+      const orderInput: CreateOrderInput = {
+        store_id: storeId,
+        customer_id: customerIdToLink,
+        customer_name: formData.name,
+        customer_email: formData.email,
+        order_date: new Date().toISOString(),
+        total_amount: finalTotalAmount,
+        delivery_cost: deliveryCost,
+        status: 'Pending',
+        shipping_address: shippingAddress,
+        billing_address: `Mobile Money: ${formData.mobileMoneyNumber}`,
+        shipping_latitude: latitude,
+        shipping_longitude: longitude,
+        payment_method: 'Mobile Money',
+        customer_specification: formData.customer_specification || null,
+      };
+      
       console.log(`[placeOrderAction] Creating order for store ${storeName} (${storeId})`);
       const createdOrder = await createOrder(supabase, orderInput);
       if (!createdOrder || !createdOrder.id) {
@@ -358,15 +344,27 @@ export async function placeOrderAction(
         await updateProductStock(supabase, item.id, newStockCount);
       }
       
-      placedOrderIds.push(orderId);
-      successfullyProcessedTotalAmountAllStores += finalTotalAmount;
       console.log(`[placeOrderAction] Order ${orderId} for store ${storeName} created successfully. Simulating delivery dispatch.`);
+      return { success: true, orderId: orderId, totalAmount: finalTotalAmount };
 
     } catch (storeOrderError) {
-      console.error(`[placeOrderAction] Error processing order for store ${storeName} (${storeId}):`, storeOrderError);
-      detailedErrors.push({ storeId, storeName, message: storeOrderError instanceof Error ? storeOrderError.message : `An unexpected error occurred for store ${storeName}.`});
+      console.error(`[placeOrderAction] Error processing order for store ${storeId}:`, storeOrderError);
+      const storeName = itemsByStore.get(storeId)?.[0]?.storeName || 'Unknown Store';
+      return { success: false, storeId, storeName, message: storeOrderError instanceof Error ? storeOrderError.message : `An unexpected error occurred.` };
     }
+  });
+
+  const results = await Promise.all(storeProcessingPromises);
+
+  for (const result of results) {
+      if (result.success) {
+          placedOrderIds.push(result.orderId);
+          successfullyProcessedTotalAmountAllStores += result.totalAmount;
+      } else {
+          detailedErrors.push({ storeId: result.storeId, storeName: result.storeName, message: result.message });
+      }
   }
+
 
   // 3. Update customer's aggregate data if any orders were successful
   if (customerIdToLink && placedOrderIds.length > 0) {
