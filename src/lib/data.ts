@@ -156,47 +156,42 @@ export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store
 };
 
 export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
-  console.log('[getAllProducts] Attempting to fetch products with status "Active".');
-  const { data: productsData, error: productsError } = await supabase
-    .from('products')
-    .select('*')
-    .eq('status', 'Active');
+    console.log('[getAllProducts] Attempting to fetch products with status "Active".');
+    const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('status', 'Active');
 
-  if (productsError) {
-    console.error('[getAllProducts] Supabase error object while fetching products:', productsError);
-    throw new Error(`Supabase error fetching products: ${productsError.message}. Code: ${productsError.code}. Details: ${productsError.details}. Hint: ${productsError.hint}.`);
-  }
-  if (!productsData) {
-    console.warn('[getAllProducts] productsData is null after fetching, and no error was thrown by Supabase.');
-    return [];
-  }
-  if (productsData.length === 0) {
-    console.warn('[getAllProducts] No products found with status "Active". Check your database table "products", ensure items have status "Active", and verify RLS policies allow read access for the anon role.');
-    return [];
-  }
-  console.log(`[getAllProducts] Fetched ${productsData.length} products with status "Active" initially.`);
-  
-  const productIds = productsData.map(p => p.id);
-  let allProductImages: SupabaseProductImage[] = [];
-  if (productIds.length > 0) {
-    const { data: images, error: imgError } = await supabase.from('product_images').select('*').in('product_id', productIds);
-    if (imgError) console.error('[getAllProducts] Error fetching images:', imgError);
-    else allProductImages = images || [];
-  }
+    if (productsError) {
+        console.error('[getAllProducts] Supabase error while fetching products:', productsError);
+        throw new Error(`Supabase error fetching products: ${productsError.message}`);
+    }
 
-  const storeIds = [...new Set(productsData.map(p => p.store_id).filter(Boolean))] as string[];
-  const storesMap = new Map<string, { name: string }>();
-  if (storeIds.length > 0) {
-    const { data: stores, error: storeError } = await supabase.from('stores').select('id, name').in('id', storeIds).eq('status', 'Active');
-    if (storeError) console.error('[getAllProducts] Error fetching store names:', storeError);
-    else stores?.forEach(s => storesMap.set(s.id, { name: s.name }));
-  }
-  
-  const mappedProducts = await Promise.all(
-    productsData.map(p => mapSupabaseProductToAppProduct(supabase, p as SupabaseProduct, allProductImages, storesMap))
-  );
-  console.log(`[getAllProducts] Successfully mapped ${mappedProducts.length} products.`);
-  return mappedProducts;
+    if (!productsData || productsData.length === 0) {
+        console.warn('[getAllProducts] No products with status "Active" found.');
+        return [];
+    }
+
+    const storeIds = [...new Set(productsData.map(p => p.store_id).filter(Boolean))];
+    const productIds = productsData.map(p => p.id);
+
+    const [imagesRes, storesRes] = await Promise.all([
+        supabase.from('product_images').select('*').in('product_id', productIds),
+        supabase.from('stores').select('id, name').in('id', storeIds)
+    ]);
+    
+    if (imagesRes.error) console.error('[getAllProducts] Error fetching images:', imagesRes.error);
+    if (storesRes.error) console.error('[getAllProducts] Error fetching stores:', storesRes.error);
+
+    const allProductImages = imagesRes.data || [];
+    const storesMap = new Map(storesRes.data?.map(s => [s.id, { name: s.name }]));
+
+    const mappedProducts = await Promise.all(
+        productsData.map(p => mapSupabaseProductToAppProduct(supabase, p, allProductImages, storesMap))
+    );
+
+    console.log(`[getAllProducts] Successfully mapped ${mappedProducts.length} products.`);
+    return mappedProducts;
 };
 
 export const getProductById = async (supabase: SupabaseClient, id: string): Promise<Product | undefined> => {
@@ -218,81 +213,75 @@ export const getProductById = async (supabase: SupabaseClient, id: string): Prom
 };
 
 export const getProductsByStoreId = async (supabase: SupabaseClient, storeId: string): Promise<Product[]> => {
-  const { data: productsData, error: productsError } = await supabase
-    .from('products')
-    .select('*')
-    .eq('store_id', storeId)
-    .eq('status', 'Active');
+    const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('store_id', storeId)
+        .eq('status', 'Active');
 
-  if (productsError) {
-    console.error(`[getProductsByStoreId] Error fetching products for store ${storeId}:`, productsError);
-    throw new Error(`Failed to fetch products for store ${storeId}: ${productsError.message}`);
-  }
-  if (!productsData || productsData.length === 0) return [];
+    if (productsError) {
+        console.error(`[getProductsByStoreId] Error fetching products for store ${storeId}:`, productsError);
+        throw new Error(`Failed to fetch products for store ${storeId}: ${productsError.message}`);
+    }
+    if (!productsData || productsData.length === 0) return [];
 
-  const productIds = productsData.map(p => p.id);
-  let allProductImages: SupabaseProductImage[] = [];
-   if (productIds.length > 0) {
-    const { data: images, error: imgError } = await supabase.from('product_images').select('*').in('product_id', productIds);
-    if (imgError) console.error(`[getProductsByStoreId] Error fetching images for store ${storeId} products:`, imgError);
-    else allProductImages = images || [];
-  }
-  
-  const storesMap = new Map<string, { name: string }>();
-  const { data: storeData, error: storeError } = await supabase.from('stores').select('id, name').eq('id', storeId).eq('status', 'Active').single();
-  if(storeError && storeError.code !== 'PGRST116') console.error(`[getProductsByStoreId] Error fetching store name for store ${storeId}:`, storeError);
-  if(storeData) storesMap.set(storeData.id, { name: storeData.name });
+    const productIds = productsData.map(p => p.id);
+    
+    const [imagesRes, storeRes] = await Promise.all([
+        productIds.length > 0 ? supabase.from('product_images').select('*').in('product_id', productIds) : Promise.resolve({ data: [], error: null }),
+        supabase.from('stores').select('id, name').eq('id', storeId).single()
+    ]);
 
-  return Promise.all(
-    productsData.map(p => mapSupabaseProductToAppProduct(supabase, p as SupabaseProduct, allProductImages, storesMap))
-  );
+    if (imagesRes.error) console.error(`[getProductsByStoreId] Error fetching images for store ${storeId}:`, imagesRes.error);
+    if (storeRes.error) console.error(`[getProductsByStoreId] Error fetching store ${storeId}:`, storeRes.error);
+
+    const allProductImages = imagesRes.data || [];
+    const storesMap = storeRes.data ? new Map([[storeRes.data.id, { name: storeRes.data.name }]]) : new Map();
+
+    return Promise.all(
+        productsData.map(p => mapSupabaseProductToAppProduct(supabase, p, allProductImages, storesMap))
+    );
 };
 
 export const getFeaturedProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
-  console.log('[getFeaturedProducts] Fetching featured (most recent 4 active) products...');
-  const { data: productsData, error: productsError } = await supabase
-    .from('products')
-    .select('*') 
-    .eq('status', 'Active')
-    .order('created_at', { ascending: false })
-    .limit(4);
+    console.log('[getFeaturedProducts] Fetching featured (most recent 4 active) products...');
+    const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*') 
+        .eq('status', 'Active')
+        .order('created_at', { ascending: false })
+        .limit(4);
 
-  if (productsError) {
-    console.error('[getFeaturedProducts] Supabase error object while fetching featured products:', productsError);
-    throw new Error(`Failed to fetch featured products: ${productsError.message}. Code: ${productsError.code}. Details: ${productsError.details}. Hint: ${productsError.hint}.`);
-  }
-  if (!productsData) {
-    console.warn('[getFeaturedProducts] productsData is null for featured products.');
-    return [];
-  }
-  if (productsData.length === 0) {
-    console.log('[getFeaturedProducts] No Active products found to feature.');
-    return [];
-  }
-  console.log(`[getFeaturedProducts] Fetched ${productsData.length} products to feature.`);
-  
-  const productIds = productsData.map(p => p.id);
-  let allProductImages: SupabaseProductImage[] = [];
-  if (productIds.length > 0) {
-    const { data: images, error: imgError } = await supabase.from('product_images').select('*').in('product_id', productIds);
-    if (imgError) console.error('[getFeaturedProducts] Error fetching images:', imgError);
-    else allProductImages = images || [];
-  }
+    if (productsError) {
+        console.error('[getFeaturedProducts] Supabase error while fetching featured products:', productsError);
+        throw new Error(`Failed to fetch featured products: ${productsError.message}`);
+    }
+    if (!productsData || productsData.length === 0) {
+        console.warn('[getFeaturedProducts] No Active products found to feature.');
+        return [];
+    }
 
-  const storeIds = [...new Set(productsData.map(p => p.store_id).filter(Boolean))] as string[];
-  const storesMap = new Map<string, { name: string }>();
-  if (storeIds.length > 0) {
-    const { data: stores, error: storeError } = await supabase.from('stores').select('id, name').in('id', storeIds).eq('status', 'Active');
-    if (storeError) console.error('[getFeaturedProducts] Error fetching store names:', storeError);
-    else stores?.forEach(s => storesMap.set(s.id, { name: s.name }));
-  }
+    const storeIds = [...new Set(productsData.map(p => p.store_id).filter(Boolean))];
+    const productIds = productsData.map(p => p.id);
 
-  const mappedProducts = await Promise.all(
-    productsData.map(p => mapSupabaseProductToAppProduct(supabase, p as SupabaseProduct, allProductImages, storesMap))
-  );
-  console.log(`[getFeaturedProducts] Successfully mapped ${mappedProducts.length} featured products.`);
-  return mappedProducts;
+    const [imagesRes, storesRes] = await Promise.all([
+        supabase.from('product_images').select('*').in('product_id', productIds),
+        supabase.from('stores').select('id, name').in('id', storeIds)
+    ]);
+
+    if (imagesRes.error) console.error('[getFeaturedProducts] Error fetching images:', imagesRes.error);
+    if (storesRes.error) console.error('[getFeaturedProducts] Error fetching stores:', storesRes.error);
+
+    const allProductImages = imagesRes.data || [];
+    const storesMap = new Map(storesRes.data?.map(s => [s.id, { name: s.name }]));
+
+    const mappedProducts = await Promise.all(
+        productsData.map(p => mapSupabaseProductToAppProduct(supabase, p, allProductImages, storesMap))
+    );
+    console.log(`[getFeaturedProducts] Successfully mapped ${mappedProducts.length} featured products.`);
+    return mappedProducts;
 };
+
 
 // Customer Data Functions
 export const findCustomerByEmail = async (supabase: SupabaseClient, email: string): Promise<SupabaseCustomer | null> => {

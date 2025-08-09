@@ -120,10 +120,10 @@ export interface CreateCustomerInput {
   state_province?: string | null;
   zip_postal_code?: string | null;
   country?: string | null;
-  joined_date: string; // ISO string
-  last_order_date: string; // ISO string
-  total_spent: number;
-  total_orders: number;
+  joined_date?: string | null; // ISO string
+  last_order_date?: string | null; // ISO string
+  total_spent?: number | null;
+  total_orders?: number | null;
   tags?: string[] | null;
 }
 
@@ -138,9 +138,9 @@ export interface UpdateCustomerInput {
   state_province?: string | null;
   zip_postal_code?: string | null;
   country?: string | null;
-  last_order_date?: string; // ISO string
-  total_spent?: number;
-  total_orders?: number;
+  last_order_date?: string | null; // ISO string
+  total_spent?: number | null;
+  total_orders?: number | null;
   tags?: string[] | null;
   // updated_at will be handled by trigger
 }
