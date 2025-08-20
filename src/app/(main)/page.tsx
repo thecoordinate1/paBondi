@@ -7,6 +7,37 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import type { Store, Product } from '@/types';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+
+const groupStoresByCategory = (stores: Store[]) => {
+  return stores.reduce((acc, store) => {
+    const category = store.category || 'Other';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(store);
+    return acc;
+  }, {} as Record<string, Store[]>);
+};
+
+const groupProductsByCategory = (products: Product[]) => {
+  return products.reduce((acc, product) => {
+    const category = product.category || 'Other';
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(product);
+    return acc;
+  }, {} as Record<string, Product[]>);
+};
+
 
 export default async function HomePage() {
   const cookieStore = cookies();
@@ -14,6 +45,9 @@ export default async function HomePage() {
 
   const featuredStores = await getFeaturedStores(supabase);
   const featuredProducts = await getFeaturedProducts(supabase);
+
+  const storesByCategory = groupStoresByCategory(featuredStores);
+  const productsByCategory = groupProductsByCategory(featuredProducts);
 
   return (
     <div className="space-y-12">
@@ -47,10 +81,31 @@ export default async function HomePage() {
             </Button>
           </Link>
         </div>
-        {featuredStores.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredStores.map(store => (
-              <StoreCard key={store.id} store={store} />
+        {Object.keys(storesByCategory).length > 0 ? (
+          <div className="space-y-8">
+            {Object.entries(storesByCategory).map(([category, stores]) => (
+              <div key={category}>
+                <h3 className="text-xl font-semibold text-foreground/90 mb-4">{category}</h3>
+                <Carousel
+                  opts={{
+                    align: "start",
+                    loop: true,
+                  }}
+                  className="w-full"
+                >
+                  <CarouselContent>
+                    {stores.map(store => (
+                      <CarouselItem key={store.id} className="basis-full sm:basis-1/2 lg:basis-1/3">
+                         <div className="p-1 h-full">
+                          <StoreCard store={store} />
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="hidden sm:flex" />
+                  <CarouselNext className="hidden sm:flex" />
+                </Carousel>
+              </div>
             ))}
           </div>
         ) : (
@@ -69,10 +124,31 @@ export default async function HomePage() {
             </Button>
           </Link>
         </div>
-        {featuredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {featuredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
+         {Object.keys(productsByCategory).length > 0 ? (
+           <div className="space-y-8">
+            {Object.entries(productsByCategory).map(([category, products]) => (
+              <div key={category}>
+                <h3 className="text-xl font-semibold text-foreground/90 mb-4">{category}</h3>
+                <Carousel
+                  opts={{
+                    align: "start",
+                    loop: true,
+                  }}
+                  className="w-full"
+                >
+                  <CarouselContent>
+                    {products.map(product => (
+                      <CarouselItem key={product.id} className="basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
+                        <div className="p-1 h-full">
+                          <ProductCard product={product} />
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="hidden sm:flex" />
+                  <CarouselNext className="hidden sm:flex" />
+                </Carousel>
+              </div>
             ))}
           </div>
         ) : (
