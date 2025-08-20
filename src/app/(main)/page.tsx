@@ -1,12 +1,12 @@
 
+"use client"; // This page now needs client-side hooks
+
 import { getFeaturedStores, getFeaturedProducts } from '@/lib/data';
 import ProductCard from '@/components/ProductCard';
 import StoreCard from '@/components/StoreCard';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
-import { cookies } from 'next/headers';
-import { createClient } from '@/lib/supabase/server';
 import type { Store, Product } from '@/types';
 import {
   Carousel,
@@ -15,6 +15,8 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client'; // Use client-side Supabase client
 
 const groupStoresByCategory = (stores: Store[]) => {
   return stores.reduce((acc, store) => {
@@ -39,16 +41,52 @@ const groupProductsByCategory = (products: Product[]) => {
 };
 
 
-export default async function HomePage() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+export default function HomePage() {
+  const [storesByCategory, setStoresByCategory] = useState<Record<string, Store[]>>({});
+  const [productsByCategory, setProductsByCategory] = useState<Record<string, Product[]>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
 
-  const featuredStores = await getFeaturedStores(supabase);
-  const featuredProducts = await getFeaturedProducts(supabase);
+  useEffect(() => {
+    const fetchData = async () => {
+      const supabase = createClient();
+      try {
+        const [featuredStores, featuredProducts] = await Promise.all([
+          getFeaturedStores(supabase),
+          getFeaturedProducts(supabase)
+        ]);
 
-  const storesByCategory = groupStoresByCategory(featuredStores);
-  const productsByCategory = groupProductsByCategory(featuredProducts);
+        setStoresByCategory(groupStoresByCategory(featuredStores));
+        setProductsByCategory(groupProductsByCategory(featuredProducts));
+      } catch (error) {
+        console.error("Failed to fetch homepage data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const checkSize = () => {
+      setIsMobile(window.innerWidth < 768);
+      setIsTablet(window.innerWidth < 1024);
+    };
+
+    // Set initial size
+    checkSize();
+
+    window.addEventListener('resize', checkSize);
+    return () => window.removeEventListener('resize', checkSize);
+  }, []);
+
+  if (isLoading) {
+    // A simple loading state
+    return <div className="text-center p-10">Loading awesome products and stores...</div>;
+  }
+  
   return (
     <div className="space-y-12">
       <section aria-labelledby="hero-heading">
@@ -85,11 +123,13 @@ export default async function HomePage() {
           <div className="space-y-8">
             {Object.entries(storesByCategory).map(([category, stores]) => (
               <div key={category}>
-                <h3 className="text-xl font-semibold text-foreground/90 mb-4">{category}</h3>
+                 <Link href={`/stores?category=${encodeURIComponent(category)}`} passHref>
+                  <h3 className="text-xl font-semibold text-foreground/90 mb-4 hover:text-primary transition-colors hover:underline underline-offset-4">{category}</h3>
+                </Link>
                 <Carousel
                   opts={{
                     align: "start",
-                    loop: true,
+                    loop: stores.length > (isMobile ? 1 : 3),
                   }}
                   className="w-full"
                 >
@@ -128,11 +168,13 @@ export default async function HomePage() {
            <div className="space-y-8">
             {Object.entries(productsByCategory).map(([category, products]) => (
               <div key={category}>
-                <h3 className="text-xl font-semibold text-foreground/90 mb-4">{category}</h3>
+                <Link href={`/products?category=${encodeURIComponent(category)}`} passHref>
+                  <h3 className="text-xl font-semibold text-foreground/90 mb-4 hover:text-primary transition-colors hover:underline underline-offset-4">{category}</h3>
+                </Link>
                 <Carousel
                   opts={{
                     align: "start",
-                    loop: true,
+                    loop: products.length > (isMobile ? 1 : isTablet ? 3 : 4),
                   }}
                   className="w-full"
                 >

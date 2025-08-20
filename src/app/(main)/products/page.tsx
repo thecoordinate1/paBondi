@@ -4,6 +4,7 @@ import { getAllProducts } from '@/lib/data';
 import { cookies } from 'next/headers'; 
 import { createClient } from '@/lib/supabase/server'; 
 import ProductGridClient from './ProductGridClient';
+import { Suspense } from 'react';
 
 async function fetchData(): Promise<Product[]> {
   const cookieStore = cookies();
@@ -12,12 +13,19 @@ async function fetchData(): Promise<Product[]> {
   return products;
 }
 
+function ProductsPageContent({ initialProducts }: { initialProducts: Product[] }) {
+  return <ProductGridClient initialProducts={initialProducts} isLoading={false} />;
+}
+
+
 export default async function ProductsPageServer() {
   const initialProducts = await fetchData();
   return (
     <div className="space-y-8">
       <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-6">All Products</h1>
-      <ProductGridClient initialProducts={initialProducts} isLoading={false} /> 
+      <Suspense fallback={<ProductGridClient initialProducts={[]} isLoading={true} />}>
+        <ProductsPageContent initialProducts={initialProducts} />
+      </Suspense>
     </div>
   );
 }

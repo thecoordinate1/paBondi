@@ -8,21 +8,43 @@ import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from '@/components/ui/skeleton';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
 export default function ProductGridClient({ initialProducts, isLoading }: { initialProducts: Product[], isLoading: boolean }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [products, setProducts] = useState<Product[]>(initialProducts);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>(searchParams.get('category') || 'all');
   const [sortBy, setSortBy] = useState<string>('name-asc');
 
   useEffect(() => {
     setProducts(initialProducts);
   }, [initialProducts]);
 
+  useEffect(() => {
+    setSelectedCategory(searchParams.get('category') || 'all');
+  }, [searchParams]);
+
+
   const categories = useMemo(() => {
     const allCategories = new Set(initialProducts.map(p => p.category).filter(Boolean) as string[]);
     return ['all', ...Array.from(allCategories).sort()];
   }, [initialProducts]);
+
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    const params = new URLSearchParams(searchParams.toString());
+    if (category === 'all') {
+      params.delete('category');
+    } else {
+      params.set('category', category);
+    }
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
 
   const filteredAndSortedProducts = useMemo(() => {
     let processedProducts = products;
@@ -92,7 +114,7 @@ export default function ProductGridClient({ initialProducts, isLoading }: { init
           />
         </div>
         <div className="flex gap-4 w-full md:w-auto">
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <Select value={selectedCategory} onValueChange={handleCategoryChange}>
             <SelectTrigger className="w-full md:w-[180px]">
               <SelectValue placeholder="Filter by category" />
             </SelectTrigger>
