@@ -129,7 +129,6 @@ export interface CreateCustomerInput {
 
 export interface UpdateCustomerInput {
   name?: string;
-  // email?: string; // usually not updated if it's an identifier
   phone?: string | null;
   avatar_url?: string | null;
   status?: string;
@@ -142,7 +141,6 @@ export interface UpdateCustomerInput {
   total_spent?: number | null;
   total_orders?: number | null;
   tags?: string[] | null;
-  // updated_at will be handled by trigger
 }
 
 // For Server Action return type

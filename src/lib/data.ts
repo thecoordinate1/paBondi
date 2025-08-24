@@ -94,8 +94,6 @@ export const getAllStores = async (supabase: SupabaseClient): Promise<Store[]> =
   } else {
     console.log(`[getAllStores] Fetched ${data.length} "Active" stores.`);
   }
-  // For getAllStores, we might not need detailed social links immediately to keep it performant
-  // If needed on the all stores page, this would need to be fetched separately or as a join.
   return data ? data.map(store => mapSupabaseStoreToAppStore(store)) : [];
 };
 
@@ -120,7 +118,6 @@ export const getStoreById = async (supabase: SupabaseClient, id: string): Promis
     return undefined;
   }
 
-  // Fetch social links for the store
   const { data: socialLinksData, error: socialLinksError } = await supabase
     .from('social_links')
     .select('platform, url')
@@ -128,7 +125,6 @@ export const getStoreById = async (supabase: SupabaseClient, id: string): Promis
 
   if (socialLinksError) {
     console.error(`[getStoreById] Error fetching social links for store ${id}:`, socialLinksError);
-    // Continue without social links if there's an error
   }
 
   return mapSupabaseStoreToAppStore(storeData, socialLinksData || undefined);
@@ -152,7 +148,7 @@ export const getFeaturedStores = async (supabase: SupabaseClient): Promise<Store
   } else {
     console.log(`[getFeaturedStores] Fetched ${data.length} "Active" featured stores.`);
   }
-  return data ? data.map(store => mapSupabaseStoreToAppStore(store)) : []; // Social links not fetched for featured cards for brevity
+  return data ? data.map(store => mapSupabaseStoreToAppStore(store)) : [];
 };
 
 export const getAllProducts = async (supabase: SupabaseClient): Promise<Product[]> => {
@@ -533,7 +529,6 @@ export async function findOrdersBySearchTerm(supabase: SupabaseClient, searchTer
     console.log(`[findOrdersBySearchTerm] Proceeding to fetch full details for Order IDs: ${orderIdsToFetch.join(', ')}`);
     const fetchedOrdersPromises = orderIdsToFetch.map(id => getOrderDetailsById(supabase, id));
     const resolvedOrders = await Promise.all(fetchedOrdersPromises);
-    // Filter out any nulls that might occur if an order detail fetch fails for some reason
     const validOrders = resolvedOrders.filter(order => order !== null) as AppOrder[];
     console.log(`[findOrdersBySearchTerm] Fetched details for ${validOrders.length} orders.`);
     return validOrders;

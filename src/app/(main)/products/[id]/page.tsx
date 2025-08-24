@@ -78,7 +78,7 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
                           alt={`${product.name} - image ${index + 1}`}
                           fill 
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          style={{ objectFit: 'contain' }} // Changed from objectFit to style
+                          style={{ objectFit: 'contain' }}
                           className="p-2"
                           data-ai-hint="product detail image"
                           priority={index === 0}
@@ -162,20 +162,9 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
   );
 }
 
-// generateStaticParams logic for products
-import { createClient as createSupabaseServerClient } from '@/lib/supabase/server';
-import type { CookieOptions } from '@supabase/ssr';
-
-const buildTimeCookieStoreForProducts = {
-  get: (name: string) => { return undefined; },
-  set: (name: string, value: string, options: CookieOptions) => {},
-  remove: (name: string, options: CookieOptions) => {},
-  // Ensure it matches ReturnType<typeof import('next/headers').cookies> if more methods are needed by your createClient
-} as ReturnType<typeof import('next/headers').cookies>;
-
-
 export async function generateStaticParams() {
-  const supabase = createSupabaseServerClient(buildTimeCookieStoreForProducts);
-  const products = await getAllProducts(supabase); // getAllProducts now expects a client
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const products = await getAllProducts(supabase);
   return products.map(product => ({ id: product.id }));
 }
