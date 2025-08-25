@@ -1,5 +1,5 @@
 
-import { getProductById, getStoreById, getProductsByStoreId, getAllProducts } from '@/lib/data'; // Added getAllProducts
+import { getProductById, getStoreById, getProductsByStoreId, getAllProducts } from '@/lib/data';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -21,6 +21,8 @@ import AddToCartButton from './AddToCartButton';
 import type { Product } from '@/types';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
+import type { CookieOptions } from '@supabase/ssr';
+
 
 interface ProductDetailsPageProps {
   params: { id: string }; 
@@ -162,9 +164,15 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
   );
 }
 
+// This function is called at build time and cannot use cookies.
 export async function generateStaticParams() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  // Create a Supabase client that does not depend on a request context
+  const supabase = createClient({
+    get: () => undefined,
+    set: () => {},
+    remove: () => {},
+  } as any);
+
   const products = await getAllProducts(supabase);
   return products.map(product => ({ id: product.id }));
 }

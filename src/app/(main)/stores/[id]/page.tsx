@@ -116,16 +116,15 @@ export default async function StoreDetailsPage({ params }: StoreDetailsPageProps
   );
 }
 
-// Build-time cookie store mock for generateStaticParams
-const buildTimeCookieStoreForStores = {
-  get: (name: string) => { return undefined; },
-  set: (name: string, value: string, options: CookieOptions) => {},
-  remove: (name: string, options: CookieOptions) => {},
-} as ReturnType<typeof import('next/headers').cookies>;
-
-
+// This function is called at build time and cannot use cookies.
 export async function generateStaticParams() {
-  const supabase = createClient(buildTimeCookieStoreForStores);
-  const stores = await getAllStores(supabase); 
-  return stores.map(store => ({ id: store.id }));
+    // Create a Supabase client that does not depend on a request context
+    const supabase = createClient({
+      get: () => undefined,
+      set: () => {},
+      remove: () => {},
+    } as any);
+
+    const stores = await getAllStores(supabase); 
+    return stores.map(store => ({ id: store.id }));
 }
