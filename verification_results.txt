@@ -1,0 +1,26 @@
+--- STARTING WEBHOOK VERIFICATION ---
+Payload Status: failed
+Sent Signature: 7f037e9b13...
+Response Code: 500
+Response Body: {"error":"Database error"}
+-----------------------------------
+Payload Status: successful
+Sent Signature: 7fa73b0209...
+Response Code: 500
+Response Body: {"error":"Database error"}
+-----------------------------------
+Payload Status: on_hold
+Sent Signature: aba1456c78...
+Response Code: 500
+Response Body: {"error":"Database error"}
+-----------------------------------
+Payload Status: successful
+Sent Signature: 193a138bd7...
+Response Code: 500
+Response Body: {"error":"Database error"}
+-----------------------------------
+Payload Status: successful
+Sent Signature: None
+Response Code: 500
+Response Body: {"error":"Database error"}
+-----------------------------------

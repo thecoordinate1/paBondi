@@ -1,0 +1,101 @@
+
+
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
+
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseUrl.startsWith('http') || !supabaseKey) {
+    return response;
+  }
+
+  const supabase = createServerClient(
+    supabaseUrl,
+    supabaseKey,
+    {
+      cookies: {
+        get(name: string) {
+          // The error "cookies() should be awaited before using its value" for cookieStore.get(name)
+          // is unusual here as cookieStore is the result of cookies() and get is synchronous.
+          // This explicit check is a precaution.
+          const cookie = request.cookies.get(name);
+          return cookie ? cookie.value : undefined;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          // If you are using Next.js proxy, please refer to the guide below for fixing cookies issues:
+          // https://supabase.com/docs/guides/auth/server-side/nextjs#setting-cookies-from-middleware
+          request.cookies.set({ name, value, ...options });
+          response = NextResponse.next({ request: { headers: request.headers }});
+          response.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({ name, value: '', ...options });
+          response = NextResponse.next({ request: { headers: request.headers }});
+          response.cookies.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
+
+  // const { data: { user } } = await supabase.auth.getUser();
+
+  // const currentPath = request.nextUrl.pathname;
+
+  // const authRoutes = ['/login', '/signup', '/forgot-password', '/update-password'];
+  
+  // // Define public routes that do not require authentication.
+  // const publicAppRoutes = [
+  //   '/', 
+  //   '/products', 
+  //   '/stores', 
+  //   '/cart',
+  //   '/checkout' // Add checkout to public routes
+  // ]; 
+  // const productDetailPattern = /^\/products\/[^\/]+$/; // Matches /products/[id]
+  // const storeDetailPattern = /^\/stores\/[^\/]+$/; // Matches /stores/[id]
+
+
+  // // Check if the current path is a dynamic product or store detail page
+  // const isProductDetailPublic = productDetailPattern.test(currentPath);
+  // const isStoreDetailPublic = storeDetailPattern.test(currentPath);
+
+  // const isPublicRoute = publicAppRoutes.includes(currentPath) || 
+  //                       authRoutes.includes(currentPath) || 
+  //                       currentPath.startsWith('/auth/callback') ||
+  //                       isProductDetailPublic ||
+  //                       isStoreDetailPublic;
+
+
+  // // If user is not signed in and trying to access a protected route
+  // if (!user && !isPublicRoute) {
+  //   return NextResponse.redirect(new URL('/login?message=Please sign in to access this page.', request.url));
+  // }
+
+  // // If user is signed in and trying to access auth routes (login, signup)
+  // if (user && authRoutes.includes(currentPath) && currentPath !== '/update-password') { // allow access to update-password if logged in
+  //   return NextResponse.redirect(new URL('/', request.url)); // Redirect to homepage or dashboard
+  // }
+
+  return response;
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}

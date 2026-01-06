@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-labelledby="title desc">
+  <title id="title">Pabondi Icon</title>
+  <desc id="desc">Minimalist house outline with an @ symbol representing "at home".</desc>
+
+  <rect width="100%" height="100%" fill="none"/>
+  
+  <!-- House outline -->
+  <g fill="none" stroke="#111827" stroke-width="8" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M20 60 L100 10 L180 60" />
+    <rect x="40" y="60" width="120" height="110" rx="12" ry="12"/>
+  </g>
+
+  <!-- @ symbol in center -->
+  <text x="100" y="135" text-anchor="middle" font-family="Arial, Helvetica, sans-serif"
+        font-size="72" fill="#111827" font-weight="700">@</text>
+</svg>
