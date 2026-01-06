@@ -1,7 +1,7 @@
-
-import type {Metadata} from 'next';
+import { Suspense } from 'react';
+import type { Metadata } from 'next';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"; 
+import { Toaster } from "@/components/ui/toaster";
 import { CartProvider } from '@/context/CartContext';
 import FloatingCartButton from '@/components/FloatingCartButton';
 import Header from '@/components/Header';
@@ -61,7 +61,9 @@ export default function RootLayout({
             <main className="flex-grow">{children}</main>
             <Footer />
           </div>
-          <FloatingCartButton />
+          <Suspense fallback={null}>
+            <FloatingCartButton />
+          </Suspense>
         </CartProvider>
         <Toaster />
       </body>
