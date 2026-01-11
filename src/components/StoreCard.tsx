@@ -11,6 +11,8 @@ interface StoreCardProps {
 }
 
 const StoreCard = ({ store }: StoreCardProps) => {
+  if (!store) return null;
+
   return (
     <Card className="flex flex-col overflow-hidden h-full shadow-lg hover:shadow-xl transition-shadow duration-300 rounded-lg border-muted">
       <Link href={`/stores/${store.slug}`} className="block relative group">
@@ -70,7 +72,7 @@ const StoreCard = ({ store }: StoreCardProps) => {
         <div className="flex items-center gap-2 mt-1">
           <div className="flex text-yellow-500">
             {/* Simple star rendering based on average_rating */}
-            <span className="text-sm font-medium text-foreground">{store.average_rating?.toFixed(1) || 'N/A'}</span>
+            <span className="text-sm font-medium text-foreground">{(store.average_rating || 0).toFixed(1)}</span>
             <span className="ml-1 text-xs text-muted-foreground">★</span>
           </div>
           <span className="text-xs text-muted-foreground">• {store.review_count || 0} reviews</span>
