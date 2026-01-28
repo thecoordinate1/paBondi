@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Search, ShoppingCart } from 'lucide-react';
 import Image from 'next/image';
+import { Skeleton } from '@/components/ui/skeleton';
 import AutoPartsFinder from './finders/AutoPartsFinder';
 import ApparelFinder from './finders/ApparelFinder';
 import JerseysFinder from './finders/JerseysFinder';
@@ -30,6 +31,7 @@ const ProductFinder = () => {
     cheapestProduct: Product | null;
   }>({ sellerCount: 0, unitCount: 0, attributes: {}, minPrice: 0, cheapestProduct: null });
   const [categories, setCategories] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
   const { addToCart } = useCart();
@@ -59,8 +61,15 @@ const ProductFinder = () => {
   useEffect(() => {
     const fetchStats = async () => {
       if (!selectedClass) return;
-      const data = await getProductStats(supabase, selectedClass, filters);
-      setStats(data);
+      setIsLoading(true);
+      try {
+        const data = await getProductStats(supabase, selectedClass, filters);
+        setStats(data);
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     fetchStats();
   }, [selectedClass, filters, supabase]);
@@ -99,6 +108,18 @@ const ProductFinder = () => {
             />
           </div>
           <p className="text-center text-muted-foreground text-sm">Select a category above to start searching.</p>
+        </div>
+      );
+    }
+
+    if (isLoading) {
+      return (
+        <div className="space-y-4">
+          <Skeleton className="h-64 w-full rounded-md" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </div>
         </div>
       );
     }
@@ -177,18 +198,30 @@ const ProductFinder = () => {
           <div className="flex flex-col gap-2 pt-4 border-t mt-4">
             <div className="flex justify-between items-center">
               <span className="text-sm text-muted-foreground">Best Price:</span>
-              <span className="text-xl font-bold">
-                {stats.minPrice > 0 ? `K${stats.minPrice.toFixed(2)}` : '--'}
-              </span>
+              {isLoading ? (
+                <Skeleton className="h-6 w-20" />
+              ) : (
+                <span className="text-xl font-bold">
+                  {stats.minPrice > 0 ? `K${stats.minPrice.toFixed(2)}` : '--'}
+                </span>
+              )}
             </div>
             <Button
               variant="default"
               className="w-full"
               onClick={handleAddToCart}
-              disabled={!stats.cheapestProduct}
+              disabled={!stats.cheapestProduct || isLoading}
             >
-              <ShoppingCart size={18} className="mr-2" />
-              Add to Cart
+              {isLoading ? (
+                <div className="flex items-center">
+                  Please wait...
+                </div>
+              ) : (
+                <>
+                  <ShoppingCart size={18} className="mr-2" />
+                  Add to Cart
+                </>
+              )}
             </Button>
           </div>
         )}
