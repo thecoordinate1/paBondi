@@ -287,6 +287,11 @@ export async function placeOrder(
     const subtotal = storeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const serviceFee = 20.00;
 
+    const store = await getStoreById(supabase, storeId);
+    const storePickupAddress = store?.pickup_address || '';
+    const storePickupLat = store?.pickup_latitude || null;
+    const storePickupLng = store?.pickup_longitude || null;
+
     // Calculate delivery cost for this specific store
     let storeDeliveryCost = 0;
     if (deliveryMethod !== 'pickup') {

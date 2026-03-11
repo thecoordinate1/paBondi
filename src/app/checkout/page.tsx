@@ -243,12 +243,18 @@ function CheckoutPageContent() {
       if (result.success && result.orderIds && result.orderIds.length > 0) {
         if (!result.detailedErrors || result.detailedErrors.length === 0) {
           toast({
-            title: "Payment Initiated!",
-            description: `Please check your phone to complete the transaction. Redirecting...`,
+            title: "Order Placed!",
+            description: `Opening WhatsApp to complete your order...`,
           });
+
+          const productList = cartItems.map(item => `- ${item.name} x${item.quantity} (K ${(item.price * item.quantity).toFixed(2)})`).join('\n');
+          const message = `Hello, I would like to pay for my order.\n\n*Products:*\n${productList}\n\n*Location:*\n${data.location}\n\n*Grand Total:* K ${finalTotal.toFixed(2)}\n\n*Order IDs:* ${result.orderIds.join(', ')}`;
+          const whatsappUrl = `https://wa.me/260776204807?text=${encodeURIComponent(message)}`;
+          
           setIsSuccess(true);
           clearCart();
-          router.push(`/order-confirmation?orderIds=${result.orderIds.join(',')}`);
+          
+          window.location.href = whatsappUrl;
         } else {
           toast({
             title: "Partial Order Failure",
@@ -624,7 +630,7 @@ function CheckoutPageContent() {
                       </>
                     ) : (
                       <>
-                        Place Order & Initiate Payment K {finalTotal.toFixed(2)}
+                        Place Order & Pay via WhatsApp K {finalTotal.toFixed(2)}
                       </>
                     )}
                   </Button>
