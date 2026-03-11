@@ -6,7 +6,7 @@ import { useState, useRef } from 'react';
 import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/context/CartContext';
-import { ShoppingCart, Eye, Store, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Eye, Store, AlertCircle, ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import {
