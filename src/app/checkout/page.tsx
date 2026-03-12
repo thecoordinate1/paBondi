@@ -11,8 +11,8 @@ import { useRouter } from 'next/navigation';
 import { useForm, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { OrderFormData, PlaceOrderResult, DeliveryMethod, Coupon } from '@/types';
-import { placeOrder, calculateDeliveryCostAction, verifyCouponAction } from './actions';
+import type { OrderFormData, PlaceOrderResult, DeliveryMethod } from '@/types';
+import { placeOrder, calculateDeliveryCostAction } from './actions';
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -41,12 +41,10 @@ const deliveryMethods: { id: DeliveryMethod, label: string, description: string,
 // --- Zod Validation Schema ---
 const checkoutFormSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  email: z.string().email({ message: "Invalid email address." }),
   contactNumber: z.string().min(10, { message: "A valid contact number is required (e.g 077/076/075-xxxxxxx)" }),
   location: z.string().min(10, { message: "Please provide location coordinates or use current location." }).refine(val => /^-?\d{1,3}(\.\d+)?,\s*-?\d{1,3}(\.\d+)?$/.test(val.trim()), {
     message: "Invalid format. Please use 'latitude, longitude'."
   }),
-  mobileMoneyNumber: z.string().min(9, { message: "A valid mobile money number is required." }),
   customer_specification: z.string().max(500, "Specifications cannot exceed 500 characters.").optional(),
   deliveryMethod: z.enum(['pickup', 'economy', 'normal', 'express']),
 });
@@ -68,59 +66,8 @@ function CheckoutPageContent() {
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
 
-  // Coupon State
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupons, setAppliedCoupons] = useState<Coupon[]>([]);
-  const [isVerifyingCoupon, setIsVerifyingCoupon] = useState(false);
-  const [couponError, setCouponError] = useState<string | null>(null);
-
-  // --- Coupon Logic ---
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) return;
-    setIsVerifyingCoupon(true);
-    setCouponError(null);
-
-    // Check if already applied
-    if (appliedCoupons.some(c => c.code === couponCode.trim())) {
-      setCouponError("This coupon is already applied.");
-      setIsVerifyingCoupon(false);
-      return;
-    }
-
-    const uniqueStoreIds = [...new Set(cartItems.map(item => item.storeId))];
-    const result = await verifyCouponAction(couponCode.trim(), uniqueStoreIds);
-
-    if (result.success && result.coupon) {
-      // Check if we already have a coupon for this store
-      const existingStoreCouponIndex = appliedCoupons.findIndex(c => c.storeId === result.coupon!.storeId);
-
-      if (existingStoreCouponIndex >= 0) {
-        // Replace existing coupon for that store? Or warn? 
-        // Let's replace it for better UX
-        const newCoupons = [...appliedCoupons];
-        newCoupons[existingStoreCouponIndex] = result.coupon;
-        setAppliedCoupons(newCoupons);
-        toast({
-          title: "Coupon Updated",
-          description: `Replaced previous coupon for this store with ${result.coupon.code}`,
-        });
-      } else {
-        setAppliedCoupons(prev => [...prev, result.coupon!]);
-        toast({
-          title: "Coupon Applied!",
-          description: `Discount applied to items from correct store.`,
-        });
-      }
-      setCouponCode('');
-    } else {
-      setCouponError(result.error || "Invalid coupon.");
-    }
-    setIsVerifyingCoupon(false);
-  };
-
-  const handleRemoveCoupon = (code: string) => {
-    setAppliedCoupons(prev => prev.filter(c => c.code !== code));
-  };
+  // Discount / Tracking Code State
+  const [discountCode, setDiscountCode] = useState('');
 
   // Initial Load and Cart Check
   useEffect(() => {
@@ -239,7 +186,7 @@ function CheckoutPageContent() {
     setIsSubmitting(true);
     setSubmissionErrors(null);
     try {
-      const result: PlaceOrderResult = await placeOrder(data, cartItems, appliedCoupons);
+      const result: PlaceOrderResult = await placeOrder(data, cartItems);
       if (result.success && result.orderIds && result.orderIds.length > 0) {
         if (!result.detailedErrors || result.detailedErrors.length === 0) {
           toast({
@@ -248,7 +195,9 @@ function CheckoutPageContent() {
           });
 
           const productList = cartItems.map(item => `- ${item.name} x${item.quantity} (K ${(item.price * item.quantity).toFixed(2)})`).join('\n');
-          const message = `Hello, I would like to pay for my order.\n\n*Products:*\n${productList}\n\n*Location:*\n${data.location}\n\n*Grand Total:* K ${finalTotal.toFixed(2)}\n\n*Order IDs:* ${result.orderIds.join(', ')}`;
+          const discountLine = discountCode.trim() ? `\n\n*Discount Code:* ${discountCode.trim()}` : '';
+          const specLine = data.customer_specification?.trim() ? `\n\n*Order Notes:* ${data.customer_specification.trim()}` : '';
+          const message = `Hello, I would like to pay for my order.\n\n*Products:*\n${productList}\n\n*Location:*\n${data.location}${discountLine}${specLine}\n\n*Grand Total:* K ${finalTotal.toFixed(2)}\n\n*Order IDs:* ${result.orderIds.join(', ')}`;
           const whatsappUrl = `https://wa.me/260776204807?text=${encodeURIComponent(message)}`;
           
           setIsSuccess(true);
@@ -303,22 +252,7 @@ function CheckoutPageContent() {
   const serviceFee = 20; // Fixed K20 service fee
   const currentDeliveryCost = deliveryCosts?.[selectedDeliveryMethod] ?? 0;
 
-  // Calculate total discount
-  const totalDiscount = appliedCoupons.reduce((total, coupon) => {
-    // Find items fro this store
-    const storeItems = cartItems.filter(item => item.storeId === coupon.storeId);
-    const storeSubtotal = storeItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-    let discount = 0;
-    if (coupon.discountType === 'percentage') {
-      discount = (storeSubtotal * coupon.discountValue) / 100;
-    } else {
-      discount = coupon.discountValue;
-    }
-    return total + Math.min(discount, storeSubtotal);
-  }, 0);
-
-  const finalTotal = Math.max(0, subTotal + serviceFee + currentDeliveryCost - totalDiscount);
+  const finalTotal = subTotal + serviceFee + currentDeliveryCost;
   const isLocationRequired = selectedDeliveryMethod !== 'pickup';
 
   // --- Helper for Step Titles (Enhancement) ---
@@ -445,12 +379,7 @@ function CheckoutPageContent() {
                   <Input id="name" {...register("name")} className="mt-1" />
                   {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
                 </div>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="email">Email Address</Label>
-                    <Input id="email" type="email" {...register("email")} className="mt-1" />
-                    {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
-                  </div>
+                <div className="grid sm:grid-cols-1 gap-4">
                   <div>
                     <Label htmlFor="contactNumber">Contact Number</Label>
                     <Input id="contactNumber" type="tel" {...register("contactNumber")} className="mt-1" />
@@ -550,59 +479,18 @@ function CheckoutPageContent() {
               </CardHeader>
               <CardContent className="space-y-6">
 
-                {/* Coupon Section */}
+                {/* Discount / Tracking Code */}
                 <div className="space-y-2 pb-4 border-b">
-                  <Label htmlFor="couponCode" className="font-semibold">Discount Coupon</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="couponCode"
-                      placeholder="Enter code"
-                      value={couponCode}
-                      onChange={(e) => setCouponCode(e.target.value)}
-                      disabled={isVerifyingCoupon}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleApplyCoupon}
-                      disabled={!couponCode || isVerifyingCoupon}
-                    >
-                      {isVerifyingCoupon ? <Loader2 className="animate-spin h-4 w-4" /> : "Apply"}
-                    </Button>
-                  </div>
-                  {couponError && <p className="text-sm text-destructive mt-1">{couponError}</p>}
-
-                  {appliedCoupons.length > 0 && (
-                    <div className="space-y-2 mt-2">
-                      {appliedCoupons.map(coupon => (
-                        <div key={coupon.code} className="flex justify-between items-center text-sm bg-primary/10 p-2 rounded text-primary">
-                          <span>Applied: <strong>{coupon.code}</strong> {coupon.discountType === 'percentage' ? `(-${coupon.discountValue}%)` : `(-K ${coupon.discountValue})`}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 hover:bg-transparent text-primary hover:text-destructive"
-                            onClick={() => handleRemoveCoupon(coupon.code)}
-                          >
-                            &times;
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <Label htmlFor="discountCode" className="font-semibold">Discount / Referral Code (Optional)</Label>
+                  <Input
+                    id="discountCode"
+                    placeholder="Enter code if you have one"
+                    value={discountCode}
+                    onChange={(e) => setDiscountCode(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Your code will be included in your order message for tracking.</p>
                 </div>
 
-
-                <div className="space-y-2">
-                  <Label htmlFor="mobileMoneyNumber" className="font-semibold">Mobile Money Number for Payment</Label>
-                  <Input id="mobileMoneyNumber" type="tel" {...register("mobileMoneyNumber")} placeholder="e.g., 2567..." className="mt-1" />
-                  {errors.mobileMoneyNumber && <p className="text-sm text-destructive mt-1">{errors.mobileMoneyNumber.message}</p>}
-                  <p className="text-xs text-muted-foreground">
-                    Payment will be **simulated**. Enter the number you wish to use for the mobile money transaction.
-                  </p>
-                </div>
-
-                <Separator />
 
                 <div>
                   <Label htmlFor="customer_specification" className="font-semibold">Order Specifications (Optional)</Label>

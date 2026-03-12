@@ -23,10 +23,9 @@ import {
   getProductStock,
   updateProductStock,
   getStoreById,
-  verifyCoupon,
 } from '@/lib/data';
 import type { Customer as SupabaseCustomer } from '@/types/supabase';
-import type { Coupon } from '@/types';
+
 import { calculateDeliveryCost } from '@/lib/delivery';
 
 
@@ -95,34 +94,7 @@ export async function calculateDeliveryCostAction(
 }
 
 
-/**
- * Server action to verify a coupon code.
- */
-export async function verifyCouponAction(code: string, storeIds: string[]): Promise<{ success: boolean; coupon?: Coupon; error?: string }> {
-  const cookieStore = await cookies();
-  const supabase = createClient(cookieStore);
 
-  try {
-    // Check against all stores in the cart
-    // Note: If a user has a mixed cart, we need to find which store this coupon belongs to.
-    // The coupon code is unique per store, but might be duplicated across stores?
-    // SQL constraint says: unique(store_id, code). So codes can be Same for different stores.
-    // We iterate to find a match.
-
-    for (const storeId of storeIds) {
-      const coupon = await verifyCoupon(supabase, code, storeId);
-      if (coupon) {
-        return { success: true, coupon };
-      }
-    }
-
-    return { success: false, error: "Invalid coupon code or not applicable to items in your cart." };
-
-  } catch (error) {
-    console.error('[verifyCouponAction] Error:', error);
-    return { success: false, error: "Failed to verify coupon." };
-  }
-}
 
 /**
  * Groups cart items by their store ID.
@@ -199,13 +171,14 @@ async function processLencoPayment(
  */
 export async function placeOrder(
   formData: OrderFormData,
-  cartItems: CartItem[],
-  appliedCoupons: Coupon[] = []
+  cartItems: CartItem[]
 ): Promise<PlaceOrderResult> {
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
 
-  const { name, email, location, deliveryMethod, mobileMoneyNumber } = formData;
+  const { name, location, deliveryMethod } = formData;
+  const email = formData.email || `${formData.contactNumber.replace(/[^a-zA-Z0-9]/g, '')}@pabondi.com`;
+  const mobileMoneyNumber = formData.mobileMoneyNumber || formData.contactNumber;
 
   // Calculate specific delivery costs if relevant
   let calculatedDeliveryCosts: { [key in DeliveryMethod]?: number } = {};
@@ -305,20 +278,7 @@ export async function placeOrder(
       }
     }
 
-    // --- Apply Coupon Discount ---
-    let discountAmount = 0;
-    const storeCoupon = appliedCoupons.find(c => c.storeId === storeId);
-    if (storeCoupon) {
-      if (storeCoupon.discountType === 'percentage') {
-        discountAmount = (subtotal * storeCoupon.discountValue) / 100;
-      } else {
-        discountAmount = storeCoupon.discountValue;
-      }
-      // Ensure discount doesn't exceed subtotal
-      discountAmount = Math.min(discountAmount, subtotal);
-    }
-
-    const totalAmount = subtotal + serviceFee + storeDeliveryCost - discountAmount;
+    const totalAmount = subtotal + serviceFee + storeDeliveryCost;
 
     // --- 4a. Process Payment (per store order) ---
     const paymentReference = `pabondi-${storeId.substring(0, 8)}-${Date.now()}`;

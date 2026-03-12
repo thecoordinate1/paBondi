@@ -58,6 +58,7 @@ export interface Store {
   socialLinks?: SocialLinkItem[];
   // New fields from SQL schema
   banner_url?: string | null;
+  pickup_address?: string | null;
   is_verified?: boolean;
   average_rating?: number;
   review_count?: number;
@@ -77,10 +78,10 @@ export interface CartItem extends Product {
 
 export interface OrderFormData {
   name: string;
-  email: string;
+  email?: string;
   contactNumber: string;
   location: string; // Will hold coordinates like "lat, lng"
-  mobileMoneyNumber: string;
+  mobileMoneyNumber?: string;
   customer_specification?: string;
   deliveryMethod: DeliveryMethod;
 }
