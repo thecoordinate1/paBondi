@@ -339,12 +339,7 @@ function CheckoutPageContent() {
                   <p>Service Fee</p>
                   <p className="font-medium text-foreground">K {serviceFee.toFixed(2)}</p>
                 </div>
-                {totalDiscount > 0 && (
-                  <div className="flex justify-between text-base text-green-600">
-                    <p>Discount</p>
-                    <p className="font-medium">-K {totalDiscount.toFixed(2)}</p>
-                  </div>
-                )}
+
                 <div className="flex justify-between text-base">
                   <p className="text-muted-foreground">Delivery ({selectedDeliveryMethod === 'pickup' ? 'Pick-up' : selectedDeliveryMethod})</p>
                   {isCalculatingCost && isLocationRequired
